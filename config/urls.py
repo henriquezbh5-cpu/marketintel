@@ -32,6 +32,7 @@ EXPOSE_ADMIN = _flag("EXPOSE_ADMIN", default=True)
 EXPOSE_METRICS = _flag("EXPOSE_METRICS", default=True)
 
 urlpatterns = [
+    path("", include("apps.dashboard.urls")),
     path("health/", live, name="health"),
     path("health/live/", live, name="health-live"),
     path("health/ready/", ready, name="health-ready"),

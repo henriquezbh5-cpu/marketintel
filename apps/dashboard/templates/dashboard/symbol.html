@@ -1,0 +1,250 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{{ symbol }}{% endblock %}
+
+{% block content %}
+<div x-data="symbolApp('{{ symbol|escapejs }}')" class="space-y-6">
+
+  <a href="/markets/" class="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white">
+    <i data-lucide="arrow-left" class="h-3.5 w-3.5"></i> All markets
+  </a>
+
+  <!-- Header card -->
+  <div class="glass-strong rounded-2xl p-6 lg:p-8 grid-bg relative overflow-hidden">
+    <div class="absolute -top-20 -right-20 h-64 w-64 rounded-full"
+         :class="up ? 'bg-mint-500/20' : 'bg-rose-500/20'" style="filter: blur(60px);"></div>
+    <div class="relative flex flex-col lg:flex-row lg:items-end gap-6">
+      <div class="flex items-center gap-4">
+        <div class="h-16 w-16 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-glow"
+             :class="up ? 'bg-gradient-to-br from-mint-400 to-iris-500' : 'bg-gradient-to-br from-rose-500 to-amber-400'">
+          <span x-text="symbol.slice(0,3)"></span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-3xl font-bold tracking-tight" x-text="symbol"></h1>
+            <span class="text-white/40 font-medium">/ USD</span>
+          </div>
+          <div class="text-sm text-white/50 mt-0.5" x-text="instrumentName || '{{ instrument.name|default:'' }}'"></div>
+        </div>
+      </div>
+
+      <div class="flex-1 lg:flex lg:justify-end">
+        <div class="flex items-end gap-5">
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono">Price</div>
+            <div class="text-4xl font-bold num" x-text="MI.fmt.money(spot.price)"></div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono">24h</div>
+            <div class="text-2xl font-bold num"
+                 :class="spot.change_24h_pct >= 0 ? 'text-mint-400' : 'text-rose-400'"
+                 x-text="MI.fmt.pct(spot.change_24h_pct)"></div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono">Volume</div>
+            <div class="text-2xl font-bold num text-white/80" x-text="'$' + MI.fmt.big(spot.volume_24h)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart card -->
+  <div class="glass-strong rounded-2xl overflow-hidden">
+    <div class="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-white/5">
+      <div class="flex items-center gap-2 text-sm font-bold">
+        <i data-lucide="candlestick-chart" class="h-4 w-4 text-iris-400"></i> Price chart
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex bg-ink-700 rounded-lg p-0.5 text-xs">
+          <template x-for="r in resolutions" :key="r.value">
+            <button @click="setResolution(r.value)"
+                    :class="resolution===r.value ? 'bg-iris-500/20 text-iris-400' : 'text-white/50'"
+                    class="px-3 py-1.5 rounded font-mono"
+                    x-text="r.label"></button>
+          </template>
+        </div>
+        <div class="flex bg-ink-700 rounded-lg p-0.5 text-xs">
+          <template x-for="h in [6, 24, 72, 168]" :key="h">
+            <button @click="setHours(h)"
+                    :class="hours===h ? 'bg-mint-500/20 text-mint-400' : 'text-white/50'"
+                    class="px-3 py-1.5 rounded font-mono">
+              <span x-text="h<24 ? h+'h' : (h/24)+'d'"></span>
+            </button>
+          </template>
+        </div>
+        <div class="flex bg-ink-700 rounded-lg p-0.5 text-xs">
+          <button @click="chartType='line'"    :class="chartType==='line'    ? 'bg-amber-400/20 text-amber-400' : 'text-white/50'" class="px-3 py-1.5 rounded">Line</button>
+          <button @click="chartType='candles'" :class="chartType==='candles' ? 'bg-amber-400/20 text-amber-400' : 'text-white/50'" class="px-3 py-1.5 rounded">Candles</button>
+        </div>
+      </div>
+    </div>
+    <div class="p-5">
+      <div class="h-[420px] relative">
+        <canvas id="symbol-chart"></canvas>
+        <div x-show="loading" class="absolute inset-0 flex items-center justify-center">
+          <div class="text-xs text-white/40 font-mono animate-pulse">Loading…</div>
+        </div>
+        <div x-show="!loading && !candles.length" class="absolute inset-0 flex items-center justify-center">
+          <div class="text-center">
+            <i data-lucide="line-chart" class="h-8 w-8 text-white/20 mx-auto mb-2"></i>
+            <div class="text-sm text-white/40">No candles for this resolution yet.</div>
+            <div class="text-xs text-white/30 mt-1">Run: <span class="font-mono">make backfill SYMBOLS=<span x-text="symbol"></span>USDT</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats grid -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <template x-for="card in stats" :key="card.label">
+      <div class="glass rounded-xl p-4">
+        <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono" x-text="card.label"></div>
+        <div class="text-xl font-bold num mt-1" :class="card.color || ''" x-text="card.value"></div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<script>
+  function symbolApp(symbol) {
+    return {
+      symbol,
+      spot: { price: null, change_24h_pct: null, volume_24h: null },
+      instrumentName: '',
+      candles: [],
+      resolution: '1m',
+      hours: 24,
+      chartType: 'line',
+      chart: null,
+      loading: true,
+      stats: [],
+      resolutions: [
+        { label: '1m', value: '1m' },
+        { label: '5m', value: '5m' },
+        { label: '15m', value: '15m' },
+        { label: '1h', value: '1h' },
+        { label: '4h', value: '4h' },
+        { label: '1d', value: '1d' },
+      ],
+
+      get up() { return (this.spot.change_24h_pct ?? 0) >= 0; },
+
+      init() {
+        this.loadSpot();
+        this.loadCandles();
+        this.$watch('chartType', () => this.draw());
+        MI.poll(() => this.loadSpot(), 5000);
+      },
+
+      async loadSpot() {
+        try {
+          const d = await MI.fetchJSON('/_/spots/');
+          const r = d.results.find(x => x.symbol === this.symbol);
+          if (r) {
+            this.spot = r;
+            this.instrumentName = r.name;
+          }
+        } catch (e) {}
+      },
+
+      async setResolution(r) { this.resolution = r; await this.loadCandles(); },
+      async setHours(h) { this.hours = h; await this.loadCandles(); },
+
+      async loadCandles() {
+        this.loading = true;
+        try {
+          const d = await MI.fetchJSON(`/_/candles/${this.symbol}/?resolution=${this.resolution}&hours=${this.hours}`);
+          this.candles = d.candles;
+          this.computeStats();
+          this.$nextTick(() => { lucide.createIcons(); this.draw(); });
+        } catch (e) { this.candles = []; }
+        finally { this.loading = false; }
+      },
+
+      computeStats() {
+        if (!this.candles.length) { this.stats = []; return; }
+        const closes = this.candles.map(c => c.c);
+        const highs = this.candles.map(c => c.h);
+        const lows = this.candles.map(c => c.l);
+        const vols = this.candles.map(c => c.v);
+        const open = this.candles[0].o, close = closes[closes.length-1];
+        const change = ((close - open) / open) * 100;
+        const high = Math.max(...highs), low = Math.min(...lows);
+        const vwap = vols.reduce((a,_,i) => a + closes[i]*vols[i], 0) / (vols.reduce((a,b)=>a+b,0) || 1);
+        this.stats = [
+          { label: 'Open',  value: MI.fmt.money(open) },
+          { label: 'Close', value: MI.fmt.money(close), color: change >= 0 ? 'text-mint-400' : 'text-rose-400' },
+          { label: 'High',  value: MI.fmt.money(high), color: 'text-mint-400' },
+          { label: 'Low',   value: MI.fmt.money(low),  color: 'text-rose-400' },
+          { label: 'Range', value: MI.fmt.pct(((high-low)/low)*100) },
+          { label: 'Window change', value: MI.fmt.pct(change), color: change >= 0 ? 'text-mint-400' : 'text-rose-400' },
+          { label: 'VWAP', value: MI.fmt.money(vwap) },
+          { label: 'Candles', value: this.candles.length.toLocaleString() },
+        ];
+      },
+
+      draw() {
+        if (!this.candles.length) return;
+        const ctx = document.getElementById('symbol-chart').getContext('2d');
+        if (this.chart) this.chart.destroy();
+        const labels = this.candles.map(c => new Date(c.ts));
+
+        if (this.chartType === 'line') {
+          const closes = this.candles.map(c => c.c);
+          const up = closes[closes.length-1] >= closes[0];
+          const color = up ? '#34e5b5' : '#f43f5e';
+          const grad = ctx.createLinearGradient(0, 0, 0, 420);
+          grad.addColorStop(0, up ? 'rgba(52,229,181,.22)' : 'rgba(244,63,94,.22)');
+          grad.addColorStop(1, 'transparent');
+          this.chart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets: [{ data: closes, borderColor: color, backgroundColor: grad, fill: true, borderWidth: 2, tension: .25, pointRadius: 0, pointHoverRadius: 4 }] },
+            options: this.lineOpts(),
+          });
+        } else {
+          const data = this.candles.map(c => ({ x: new Date(c.ts), o: c.o, h: c.h, l: c.l, c: c.c }));
+          this.chart = new Chart(ctx, {
+            type: 'candlestick',
+            data: {
+              datasets: [{
+                label: this.symbol,
+                data,
+                color: { up: '#34e5b5', down: '#f43f5e', unchanged: '#999' },
+                borderColor: { up: '#34e5b5', down: '#f43f5e', unchanged: '#999' },
+              }],
+            },
+            options: this.lineOpts(),
+          });
+        }
+      },
+
+      lineOpts() {
+        return {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(11,13,20,.95)',
+              borderColor: 'rgba(255,255,255,.08)', borderWidth: 1, padding: 10,
+              titleFont: { family: 'JetBrains Mono', size: 10 },
+              bodyFont: { family: 'Inter', weight: '600' },
+              callbacks: this.chartType === 'candles' ? {
+                label: (ctx) => {
+                  const d = ctx.raw;
+                  return [`O: $${d.o.toFixed(2)}`, `H: $${d.h.toFixed(2)}`, `L: $${d.l.toFixed(2)}`, `C: $${d.c.toFixed(2)}`];
+                },
+              } : { label: (ctx) => '$' + Number(ctx.parsed.y).toLocaleString('en-US', { maximumFractionDigits: 2 }) },
+            },
+          },
+          scales: {
+            x: { type: 'time', grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(255,255,255,.4)', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 10 } },
+            y: { position: 'right', grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(255,255,255,.4)', font: { family: 'JetBrains Mono', size: 10 }, callback: (v) => '$' + Number(v).toLocaleString('en-US') } },
+          },
+          interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        };
+      },
+    };
+  }
+</script>
+{% endblock %}

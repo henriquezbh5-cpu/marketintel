@@ -1,0 +1,364 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+<div class="space-y-8" x-data="homeApp()">
+
+  <!-- Hero -->
+  <section class="relative overflow-hidden rounded-3xl glass-strong ring-1 ring-white/5 p-8 lg:p-10 grid-bg">
+    <div class="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-iris-500/20 blur-3xl"></div>
+    <div class="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-mint-500/15 blur-3xl"></div>
+    <div class="relative flex flex-col lg:flex-row lg:items-end gap-8">
+      <div class="flex-1">
+        <div class="flex items-center gap-2 text-xs font-mono uppercase tracking-[.2em] text-white/40 mb-3">
+          <span class="dot-live h-2 w-2 rounded-full bg-mint-500 animate-pulse-slow"></span>
+          Live · ingest every minute
+        </div>
+        <h1 class="text-4xl lg:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-white via-white to-white/60">
+          Crypto market intelligence
+        </h1>
+        <p class="mt-3 text-white/60 max-w-2xl">
+          Multi-source ingestion (CoinGecko + Binance) into a Medallion-layout warehouse.
+          Bronze on MinIO, Silver on partitioned PostgreSQL, Gold marts refreshed every 5&nbsp;min.
+        </p>
+      </div>
+
+      <!-- KPI strip -->
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 min-w-[420px]">
+        <template x-for="k in kpiCards" :key="k.label">
+          <div class="glass rounded-xl p-4 group hover:border-iris-500/30 transition">
+            <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider text-white/40 font-mono">
+              <i :data-lucide="k.icon" class="h-3.5 w-3.5"></i>
+              <span x-text="k.label"></span>
+            </div>
+            <div class="mt-2 text-2xl font-bold num" x-text="k.value"></div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured BTC chart + Top movers -->
+  <section class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+    <div class="xl:col-span-2 glass-strong rounded-2xl overflow-hidden">
+      <div class="flex items-center justify-between p-5 border-b border-white/5">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-400 to-rose-400 flex items-center justify-center font-bold text-ink-950">₿</div>
+          <div>
+            <div class="font-bold text-lg leading-tight">BTC <span class="text-white/40 font-normal text-sm">/ USD</span></div>
+            <div class="text-xs text-white/40 font-mono">Binance · 1m candles · last 6h</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <div class="text-2xl font-bold num" x-text="btc.price ? MI.fmt.money(btc.price) : '—'"></div>
+            <div class="text-xs num"
+                 :class="btc.change >= 0 ? 'text-mint-400' : 'text-rose-400'"
+                 x-text="MI.fmt.pct(btc.change)"></div>
+          </div>
+          <a href="/markets/BTC/" class="text-xs text-iris-400 hover:text-white px-3 py-1.5 rounded-lg border border-iris-500/30 hover:bg-iris-500/10 transition flex items-center gap-1.5">
+            Detail <i data-lucide="arrow-up-right" class="h-3 w-3"></i>
+          </a>
+        </div>
+      </div>
+      <div class="p-5">
+        <div class="h-[340px] relative">
+          <canvas id="btc-chart"></canvas>
+          <div x-show="!btc.loaded" class="absolute inset-0 flex items-center justify-center">
+            <div class="text-xs text-white/40 font-mono">Loading candles...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-strong rounded-2xl overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between p-5 border-b border-white/5">
+        <div class="flex items-center gap-2 text-sm font-bold">
+          <i data-lucide="trending-up" class="h-4 w-4 text-mint-400"></i> Top movers · 24h
+        </div>
+        <div class="flex bg-ink-700 rounded-lg p-0.5 text-xs">
+          <button @click="moverTab='gainers'" :class="moverTab==='gainers' ? 'bg-mint-500/20 text-mint-400' : 'text-white/50'" class="px-2.5 py-1 rounded">Gainers</button>
+          <button @click="moverTab='losers'"  :class="moverTab==='losers'  ? 'bg-rose-500/20 text-rose-400'  : 'text-white/50'" class="px-2.5 py-1 rounded">Losers</button>
+        </div>
+      </div>
+      <div class="divide-y divide-white/5 flex-1 scroll-fade overflow-y-auto" style="max-height: 380px;">
+        <template x-if="!movers[moverTab].length">
+          <div class="p-6 text-center text-white/30 text-sm">No movers yet.</div>
+        </template>
+        <template x-for="r in movers[moverTab]" :key="r.symbol">
+          <a :href="`/markets/${r.symbol}/`" class="flex items-center gap-3 p-3 px-5 hover:bg-white/[.02] transition">
+            <div class="h-8 w-8 rounded-lg bg-ink-700 flex items-center justify-center text-xs font-bold" x-text="r.symbol.slice(0,3)"></div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm truncate" x-text="r.symbol"></div>
+              <div class="text-[11px] text-white/40 truncate" x-text="r.name"></div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-medium num" x-text="MI.fmt.money(r.price)"></div>
+              <div class="text-[11px] num" :class="r.change_24h_pct >= 0 ? 'text-mint-400' : 'text-rose-400'" x-text="MI.fmt.pct(r.change_24h_pct)"></div>
+            </div>
+          </a>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <!-- Watchlist with sparklines + News -->
+  <section class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+    <div class="xl:col-span-2 glass-strong rounded-2xl overflow-hidden">
+      <div class="flex items-center justify-between p-5 border-b border-white/5">
+        <div class="flex items-center gap-2 text-sm font-bold">
+          <i data-lucide="bar-chart-3" class="h-4 w-4 text-iris-400"></i> Watchlist
+        </div>
+        <a href="/markets/" class="text-xs text-white/50 hover:text-white">All markets →</a>
+      </div>
+      <div class="overflow-x-auto scroll-fade">
+        <table class="w-full text-sm">
+          <thead class="text-[11px] uppercase text-white/40 font-mono tracking-wider">
+            <tr class="border-b border-white/5">
+              <th class="text-left px-5 py-3 font-medium">Symbol</th>
+              <th class="text-right px-5 py-3 font-medium">Price</th>
+              <th class="text-right px-5 py-3 font-medium">24h</th>
+              <th class="text-right px-5 py-3 font-medium">Volume 24h</th>
+              <th class="text-right px-5 py-3 font-medium">Last 24h</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <template x-for="s in watchlist" :key="s.symbol">
+              <tr class="hover:bg-white/[.02] transition group">
+                <td class="px-5 py-3">
+                  <a :href="`/markets/${s.symbol}/`" class="flex items-center gap-2.5">
+                    <div class="h-7 w-7 rounded-lg bg-ink-700 flex items-center justify-center text-[10px] font-bold" x-text="s.symbol.slice(0,3)"></div>
+                    <div>
+                      <div class="font-medium" x-text="s.symbol"></div>
+                      <div class="text-[11px] text-white/40" x-text="s.name"></div>
+                    </div>
+                  </a>
+                </td>
+                <td class="px-5 py-3 text-right num font-medium" x-text="MI.fmt.money(s.price)"></td>
+                <td class="px-5 py-3 text-right num"
+                    :class="s.change_24h_pct >= 0 ? 'text-mint-400' : 'text-rose-400'"
+                    x-text="MI.fmt.pct(s.change_24h_pct)"></td>
+                <td class="px-5 py-3 text-right num text-white/60" x-text="'$' + MI.fmt.big(s.volume_24h)"></td>
+                <td class="px-5 py-3 text-right">
+                  <canvas :id="'spark-'+s.symbol" width="100" height="32" class="inline-block"></canvas>
+                </td>
+              </tr>
+            </template>
+            <template x-if="!watchlist.length">
+              <tr><td colspan="5" class="text-center py-12 text-white/30 text-sm">Loading…</td></tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="glass-strong rounded-2xl overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between p-5 border-b border-white/5">
+        <div class="flex items-center gap-2 text-sm font-bold">
+          <i data-lucide="newspaper" class="h-4 w-4 text-amber-400"></i> Latest news
+        </div>
+        <a href="/news/" class="text-xs text-white/50 hover:text-white">All →</a>
+      </div>
+      <div class="divide-y divide-white/5 flex-1 scroll-fade overflow-y-auto" style="max-height: 460px;">
+        <template x-if="!articles.length">
+          <div class="p-8 text-center">
+            <i data-lucide="bell-off" class="h-6 w-6 text-white/20 mx-auto mb-2"></i>
+            <div class="text-xs text-white/40">News feed requires CryptoPanic API key.</div>
+            <div class="text-[10px] text-white/30 mt-1">Set CRYPTOPANIC_API_KEY in .env</div>
+          </div>
+        </template>
+        <template x-for="a in articles" :key="a.id">
+          <a :href="a.url" target="_blank" rel="noopener" class="block p-4 hover:bg-white/[.02] transition">
+            <div class="flex items-start gap-3">
+              <span class="mt-1 h-2 w-2 rounded-full shrink-0"
+                    :class="a.sentiment==='positive' ? 'bg-mint-500' : a.sentiment==='negative' ? 'bg-rose-500' : 'bg-white/30'"></span>
+              <div class="min-w-0">
+                <div class="text-sm font-medium leading-snug line-clamp-2" x-text="a.title"></div>
+                <div class="mt-1.5 flex items-center gap-2 text-[11px] text-white/40 font-mono">
+                  <span x-text="a.source"></span>
+                  <span>·</span>
+                  <span x-text="MI.fmt.age(a.published_at)"></span>
+                  <template x-for="sym in a.symbols.slice(0,2)" :key="sym">
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-white/50" x-text="sym"></span>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </a>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <!-- System status -->
+  <section class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+    <template x-for="card in statusCards" :key="card.label">
+      <div class="glass rounded-xl p-4 flex items-center gap-3 group hover:bg-white/[.04] transition">
+        <div class="h-10 w-10 rounded-xl flex items-center justify-center"
+             :class="card.color + ' text-white shadow-glow'">
+          <i :data-lucide="card.icon" class="h-5 w-5"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono" x-text="card.label"></div>
+          <div class="text-base font-bold num truncate" x-text="card.value"></div>
+          <div class="text-[10px] text-white/40 truncate" x-text="card.sub"></div>
+        </div>
+      </div>
+    </template>
+  </section>
+
+</div>
+
+<script>
+  function homeApp() {
+    return {
+      kpis: {{ kpis|safe }},
+      kpiCards: [],
+      watchlist: [],
+      btc: { price: null, change: null, loaded: false },
+      btcChart: null,
+      sparkCharts: {},
+      movers: { gainers: [], losers: [] },
+      moverTab: 'gainers',
+      articles: [],
+      system: { freshness: {}, dlq: { open: 0 } },
+      statusCards: [],
+
+      init() {
+        this.refreshKpis();
+        this.loadBTCChart();
+        MI.poll(() => this.refresh(), 5000);
+        MI.poll(() => this.refreshSystem(), 15000);
+      },
+
+      refreshKpis() {
+        this.kpiCards = [
+          { label: 'Instruments', value: this.kpis.instruments, icon: 'gem' },
+          { label: 'Sources',     value: this.kpis.sources,     icon: 'plug' },
+          { label: 'Candles',     value: MI.fmt.big(this.kpis.candles), icon: 'candlestick-chart' },
+        ];
+      },
+
+      async refresh() {
+        const [k, s, m, n] = await Promise.all([
+          MI.fetchJSON('/_/kpis/'),
+          MI.fetchJSON('/_/spots/'),
+          MI.fetchJSON('/_/top-movers/'),
+          MI.fetchJSON('/_/news/'),
+        ]);
+        this.kpis = k; this.refreshKpis();
+        this.watchlist = s.results;
+        this.movers = m;
+        this.articles = n.results.slice(0, 12);
+
+        const btc = s.results.find(r => r.symbol === 'BTC');
+        if (btc) { this.btc.price = btc.price; this.btc.change = btc.change_24h_pct; }
+
+        this.$nextTick(() => {
+          lucide.createIcons();
+          this.drawSparklines();
+        });
+      },
+
+      async refreshSystem() {
+        try {
+          const sys = await MI.fetchJSON('/_/system/');
+          this.system = sys;
+          this.statusCards = [
+            { label: 'Spot freshness', value: MI.fmt.age(sys.freshness.spot), sub: 'CoinGecko cadence: 1m', icon: 'clock', color: 'bg-mint-500/20 ring-1 ring-mint-500/40' },
+            { label: 'Candle freshness', value: MI.fmt.age(sys.freshness.candle), sub: 'Binance OHLCV', icon: 'activity', color: 'bg-iris-500/20 ring-1 ring-iris-500/40' },
+            { label: 'DLQ open', value: sys.dlq.open, sub: 'Total ' + sys.dlq.total, icon: 'alert-triangle', color: sys.dlq.open ? 'bg-rose-500/20 ring-1 ring-rose-500/40' : 'bg-mint-500/20 ring-1 ring-mint-500/40' },
+            { label: 'Partitions', value: sys.partitions.length, sub: sys.partitions.reduce((s,p)=>s+p.rows,0).toLocaleString() + ' rows', icon: 'layers', color: 'bg-amber-400/20 ring-1 ring-amber-400/40' },
+          ];
+          this.$nextTick(() => lucide.createIcons());
+        } catch (e) { console.warn(e); }
+      },
+
+      async loadBTCChart() {
+        try {
+          const d = await MI.fetchJSON('/_/candles/BTC/?resolution=1m&hours=6');
+          if (!d.candles.length) return;
+          const ctx = document.getElementById('btc-chart').getContext('2d');
+          const labels = d.candles.map(c => new Date(c.ts));
+          const closes = d.candles.map(c => c.c);
+          const last = closes[closes.length - 1];
+          const first = closes[0];
+          const up = last >= first;
+          const colorMain = up ? '#34e5b5' : '#f43f5e';
+          const colorFill = up ? 'rgba(52,229,181,.18)' : 'rgba(244,63,94,.18)';
+
+          const grad = ctx.createLinearGradient(0, 0, 0, 340);
+          grad.addColorStop(0, colorFill);
+          grad.addColorStop(1, 'transparent');
+
+          if (this.btcChart) this.btcChart.destroy();
+          this.btcChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                data: closes,
+                borderColor: colorMain,
+                backgroundColor: grad,
+                fill: true,
+                borderWidth: 2,
+                tension: 0.25,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: colorMain,
+              }],
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  mode: 'index', intersect: false,
+                  backgroundColor: 'rgba(11,13,20,.95)',
+                  borderColor: 'rgba(255,255,255,.08)',
+                  borderWidth: 1,
+                  titleFont: { family: 'JetBrains Mono', size: 10 },
+                  bodyFont: { family: 'Inter', weight: '600' },
+                  padding: 10,
+                  callbacks: {
+                    label: (ctx) => '$' + Number(ctx.parsed.y).toLocaleString('en-US', { maximumFractionDigits: 2 }),
+                  },
+                },
+              },
+              scales: {
+                x: { type: 'time', time: { displayFormats: { minute: 'HH:mm' } }, grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(255,255,255,.4)', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 } },
+                y: { position: 'right', grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(255,255,255,.4)', font: { family: 'JetBrains Mono', size: 10 }, callback: (v) => '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }) } },
+              },
+              interaction: { mode: 'nearest', axis: 'x', intersect: false },
+            },
+          });
+          this.btc.loaded = true;
+        } catch (e) { console.warn('BTC chart', e); }
+      },
+
+      async drawSparklines() {
+        for (const s of this.watchlist) {
+          const id = 'spark-' + s.symbol;
+          const el = document.getElementById(id);
+          if (!el) continue;
+          if (this.sparkCharts[id]) { this.sparkCharts[id].destroy(); }
+          try {
+            const d = await MI.fetchJSON('/_/sparkline/' + s.symbol + '/');
+            if (!d.values.length) continue;
+            const up = d.values[d.values.length-1] >= d.values[0];
+            const color = up ? '#34e5b5' : '#f43f5e';
+            this.sparkCharts[id] = new Chart(el.getContext('2d'), {
+              type: 'line',
+              data: { labels: d.values.map((_,i)=>i), datasets: [{ data: d.values, borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: .35 }] },
+              options: { responsive: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } }, animation: false },
+            });
+          } catch (e) {}
+        }
+      },
+    };
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "dashboard/base.html" %}
+{% block title %}News{% endblock %}
+
+{% block content %}
+<div x-data="newsApp()" class="space-y-6">
+
+  <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+    <div>
+      <div class="text-xs uppercase tracking-[.2em] text-white/40 font-mono">News</div>
+      <h1 class="text-3xl font-bold tracking-tight mt-1">Market headlines</h1>
+      <p class="text-white/50 text-sm mt-1">Tagged with sentiment and mentioned instruments via NER pipeline.</p>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <div class="flex bg-ink-700 rounded-lg p-0.5 text-xs">
+        <button @click="filter='all'"      :class="filter==='all'      ? 'bg-iris-500/20 text-iris-400'  : 'text-white/50'" class="px-3 py-1.5 rounded">All</button>
+        <button @click="filter='positive'" :class="filter==='positive' ? 'bg-mint-500/20 text-mint-400' : 'text-white/50'" class="px-3 py-1.5 rounded">Positive</button>
+        <button @click="filter='neutral'"  :class="filter==='neutral'  ? 'bg-white/10 text-white/80'    : 'text-white/50'" class="px-3 py-1.5 rounded">Neutral</button>
+        <button @click="filter='negative'" :class="filter==='negative' ? 'bg-rose-500/20 text-rose-400' : 'text-white/50'" class="px-3 py-1.5 rounded">Negative</button>
+      </div>
+      <div class="relative">
+        <i data-lucide="search" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40"></i>
+        <input x-model="query" type="text" placeholder="Search…"
+               class="bg-ink-700 border border-white/5 rounded-lg pl-9 pr-3 py-2 text-sm w-56 focus:outline-none focus:border-iris-500/50" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Sentiment summary -->
+  <div class="grid grid-cols-3 gap-4">
+    <template x-for="card in summary" :key="card.label">
+      <div class="glass rounded-xl p-4 flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl flex items-center justify-center" :class="card.bg">
+          <i :data-lucide="card.icon" class="h-5 w-5"></i>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono" x-text="card.label"></div>
+          <div class="text-2xl font-bold num" :class="card.color" x-text="card.value"></div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Articles -->
+  <div class="space-y-3">
+    <template x-if="loading && !filtered.length">
+      <div class="glass rounded-xl p-12 text-center">
+        <i data-lucide="loader-circle" class="h-6 w-6 mx-auto text-white/30 animate-spin"></i>
+        <div class="text-sm text-white/40 mt-3">Loading…</div>
+      </div>
+    </template>
+
+    <template x-if="!loading && !articles.length">
+      <div class="glass rounded-xl p-12 text-center">
+        <i data-lucide="bell-off" class="h-8 w-8 mx-auto text-white/20"></i>
+        <h3 class="font-bold mt-3">No news ingested yet</h3>
+        <p class="text-sm text-white/40 mt-1 max-w-md mx-auto">
+          The CryptoPanic connector requires an API key.
+          Set <span class="font-mono px-1.5 py-0.5 rounded bg-ink-700">CRYPTOPANIC_API_KEY</span> in <span class="font-mono">.env</span>
+          and restart the worker.
+        </p>
+        <div class="text-xs text-white/30 mt-3 font-mono">cryptopanic.com → developers → free API key</div>
+      </div>
+    </template>
+
+    <template x-for="a in filtered" :key="a.id">
+      <a :href="a.url" target="_blank" rel="noopener"
+         class="glass rounded-xl p-5 flex items-start gap-4 hover:bg-white/[.04] hover:border-white/10 transition group">
+        <div class="h-12 w-12 rounded-xl shrink-0 flex items-center justify-center"
+             :class="a.sentiment==='positive' ? 'bg-mint-500/15 ring-1 ring-mint-500/30' : a.sentiment==='negative' ? 'bg-rose-500/15 ring-1 ring-rose-500/30' : 'bg-white/5 ring-1 ring-white/10'">
+          <i :data-lucide="a.sentiment==='positive' ? 'trending-up' : a.sentiment==='negative' ? 'trending-down' : 'minus'"
+             class="h-5 w-5"
+             :class="a.sentiment==='positive' ? 'text-mint-400' : a.sentiment==='negative' ? 'text-rose-400' : 'text-white/50'"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-base leading-snug group-hover:text-white transition" x-text="a.title"></div>
+          <div x-show="a.summary" class="text-sm text-white/50 mt-1.5 line-clamp-2" x-text="a.summary"></div>
+          <div class="mt-2 flex items-center gap-2 flex-wrap text-[11px] font-mono">
+            <span class="text-white/50" x-text="a.source"></span>
+            <span class="text-white/20">·</span>
+            <span class="text-white/50" x-text="MI.fmt.age(a.published_at)"></span>
+            <template x-for="sym in a.symbols.slice(0,4)" :key="sym">
+              <span class="px-1.5 py-0.5 rounded bg-white/5 text-white/60" x-text="sym"></span>
+            </template>
+          </div>
+        </div>
+        <i data-lucide="arrow-up-right" class="h-4 w-4 text-white/30 group-hover:text-iris-400 transition shrink-0 mt-1"></i>
+      </a>
+    </template>
+  </div>
+</div>
+
+<script>
+  function newsApp() {
+    return {
+      articles: [],
+      loading: true,
+      filter: 'all',
+      query: '',
+
+      get filtered() {
+        const q = this.query.trim().toLowerCase();
+        return this.articles.filter(a =>
+          (this.filter === 'all' || a.sentiment === this.filter) &&
+          (!q || a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q))
+        );
+      },
+
+      get summary() {
+        const c = (s) => this.articles.filter(a => a.sentiment === s).length;
+        return [
+          { label: 'Positive', value: c('positive'), icon: 'trending-up',  color: 'text-mint-400', bg: 'bg-mint-500/15 ring-1 ring-mint-500/30' },
+          { label: 'Neutral',  value: c('neutral'),  icon: 'minus',        color: 'text-white/80', bg: 'bg-white/5 ring-1 ring-white/10' },
+          { label: 'Negative', value: c('negative'), icon: 'trending-down',color: 'text-rose-400', bg: 'bg-rose-500/15 ring-1 ring-rose-500/30' },
+        ];
+      },
+
+      async init() {
+        await this.refresh();
+        MI.poll(() => this.refresh(), 15000);
+      },
+      async refresh() {
+        this.loading = true;
+        try {
+          const d = await MI.fetchJSON('/_/news/');
+          this.articles = d.results;
+        } finally {
+          this.loading = false;
+          this.$nextTick(() => lucide.createIcons());
+        }
+      },
+    };
+  }
+</script>
+{% endblock %}

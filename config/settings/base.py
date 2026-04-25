@@ -39,6 +39,7 @@ LOCAL_APPS = [
     "apps.prices",
     "apps.news",
     "apps.api",
+    "apps.dashboard",
     "pipelines",
 ]
 

@@ -1,0 +1,184 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Markets{% endblock %}
+
+{% block content %}
+<div x-data="marketsApp()" class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+    <div>
+      <div class="text-xs uppercase tracking-[.2em] text-white/40 font-mono">Markets</div>
+      <h1 class="text-3xl font-bold tracking-tight mt-1">All instruments</h1>
+      <p class="text-white/50 text-sm mt-1">Live spot prices ingested every minute via CoinGecko · candles via Binance.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <i data-lucide="search" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40"></i>
+        <input x-model="query" type="text" placeholder="Search symbol or name…"
+               class="bg-ink-700 border border-white/5 rounded-lg pl-9 pr-3 py-2 text-sm w-64 focus:outline-none focus:border-iris-500/50 transition" />
+      </div>
+      <div class="flex bg-ink-700 rounded-lg p-0.5 text-xs">
+        <button @click="sortBy('symbol')"   :class="sort==='symbol'   ? 'bg-iris-500/20 text-iris-400' : 'text-white/50'" class="px-3 py-1.5 rounded">A-Z</button>
+        <button @click="sortBy('change')"   :class="sort==='change'   ? 'bg-iris-500/20 text-iris-400' : 'text-white/50'" class="px-3 py-1.5 rounded">% 24h</button>
+        <button @click="sortBy('volume')"   :class="sort==='volume'   ? 'bg-iris-500/20 text-iris-400' : 'text-white/50'" class="px-3 py-1.5 rounded">Volume</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="glass rounded-xl p-4">
+      <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono">Tracked</div>
+      <div class="text-2xl font-bold num mt-1" x-text="rows.length"></div>
+    </div>
+    <div class="glass rounded-xl p-4">
+      <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono">Avg 24h</div>
+      <div class="text-2xl font-bold num mt-1" :class="avgChange >= 0 ? 'text-mint-400' : 'text-rose-400'" x-text="MI.fmt.pct(avgChange)"></div>
+    </div>
+    <div class="glass rounded-xl p-4">
+      <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono">Total volume</div>
+      <div class="text-2xl font-bold num mt-1" x-text="'$' + MI.fmt.big(totalVolume)"></div>
+    </div>
+    <div class="glass rounded-xl p-4">
+      <div class="text-[10px] uppercase tracking-wider text-white/40 font-mono">Last update</div>
+      <div class="text-2xl font-bold num mt-1" x-text="MI.fmt.age(latestTs)"></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="glass-strong rounded-2xl overflow-hidden">
+    <div class="overflow-x-auto scroll-fade">
+      <table class="w-full text-sm">
+        <thead class="text-[11px] uppercase text-white/40 font-mono tracking-wider sticky top-0 bg-ink-800/80 backdrop-blur">
+          <tr class="border-b border-white/5">
+            <th class="text-left px-5 py-3 font-medium">#</th>
+            <th class="text-left px-5 py-3 font-medium">Symbol</th>
+            <th class="text-right px-5 py-3 font-medium">Price</th>
+            <th class="text-right px-5 py-3 font-medium">24h %</th>
+            <th class="text-right px-5 py-3 font-medium">Volume 24h</th>
+            <th class="text-right px-5 py-3 font-medium">Last 24h</th>
+            <th class="text-left px-5 py-3 font-medium">Source</th>
+            <th class="text-right px-5 py-3 font-medium pr-8"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          <template x-for="(s, idx) in filtered" :key="s.symbol">
+            <tr class="hover:bg-white/[.03] transition group">
+              <td class="px-5 py-3 text-white/30 num text-xs" x-text="idx + 1"></td>
+              <td class="px-5 py-3">
+                <a :href="`/markets/${s.symbol}/`" class="flex items-center gap-2.5">
+                  <div class="h-8 w-8 rounded-lg bg-ink-700 flex items-center justify-center text-[11px] font-bold" x-text="s.symbol.slice(0,3)"></div>
+                  <div>
+                    <div class="font-medium" x-text="s.symbol"></div>
+                    <div class="text-[11px] text-white/40 truncate max-w-[180px]" x-text="s.name"></div>
+                  </div>
+                </a>
+              </td>
+              <td class="px-5 py-3 text-right num font-medium" x-text="MI.fmt.money(s.price)"></td>
+              <td class="px-5 py-3 text-right num"
+                  :class="s.change_24h_pct >= 0 ? 'text-mint-400' : 'text-rose-400'"
+                  x-text="MI.fmt.pct(s.change_24h_pct)"></td>
+              <td class="px-5 py-3 text-right num text-white/60" x-text="'$' + MI.fmt.big(s.volume_24h)"></td>
+              <td class="px-5 py-3 text-right">
+                <canvas :id="'mk-spark-'+s.symbol" width="120" height="32" class="inline-block"></canvas>
+              </td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 rounded bg-white/5 text-[11px] text-white/60 font-mono" x-text="s.source"></span>
+              </td>
+              <td class="px-5 py-3 text-right pr-8">
+                <a :href="`/markets/${s.symbol}/`" class="opacity-0 group-hover:opacity-100 transition text-iris-400 hover:text-white">
+                  <i data-lucide="arrow-up-right" class="h-4 w-4 inline-block"></i>
+                </a>
+              </td>
+            </tr>
+          </template>
+          <template x-if="!filtered.length">
+            <tr><td colspan="8" class="text-center py-16 text-white/30">
+              <i data-lucide="search-x" class="h-8 w-8 mx-auto mb-2 text-white/20"></i>
+              <div x-text="rows.length ? 'No matches.' : 'Loading…'"></div>
+            </td></tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  function marketsApp() {
+    return {
+      rows: [],
+      query: '',
+      sort: 'change',
+      sortDir: 'desc',
+      sparkCharts: {},
+      latestTs: null,
+
+      get filtered() {
+        const q = this.query.trim().toLowerCase();
+        let arr = !q ? this.rows.slice() : this.rows.filter(r =>
+          r.symbol.toLowerCase().includes(q) || (r.name||'').toLowerCase().includes(q)
+        );
+        const key = this.sort === 'symbol' ? 'symbol' : (this.sort === 'volume' ? 'volume_24h' : 'change_24h_pct');
+        const dir = this.sortDir === 'asc' ? 1 : -1;
+        arr.sort((a,b) => {
+          const av = a[key] ?? 0, bv = b[key] ?? 0;
+          if (typeof av === 'string') return av.localeCompare(bv) * dir;
+          return (av - bv) * dir;
+        });
+        return arr;
+      },
+
+      get avgChange() {
+        if (!this.rows.length) return 0;
+        const vals = this.rows.map(r => r.change_24h_pct).filter(v => v !== null);
+        return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+      },
+      get totalVolume() { return this.rows.reduce((a,b)=>a+(b.volume_24h||0),0); },
+
+      sortBy(k) {
+        if (this.sort === k) {
+          this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          this.sort = k;
+          this.sortDir = k === 'symbol' ? 'asc' : 'desc';
+        }
+      },
+
+      async init() {
+        await this.refresh();
+        MI.poll(() => this.refresh(), 5000);
+      },
+
+      async refresh() {
+        const d = await MI.fetchJSON('/_/spots/');
+        this.rows = d.results;
+        this.latestTs = d.results[0]?.ts;
+        this.$nextTick(() => {
+          lucide.createIcons();
+          this.drawSparks();
+        });
+      },
+
+      async drawSparks() {
+        for (const s of this.filtered.slice(0, 60)) {
+          const id = 'mk-spark-' + s.symbol;
+          const el = document.getElementById(id);
+          if (!el) continue;
+          if (this.sparkCharts[id]) continue; // draw once
+          try {
+            const d = await MI.fetchJSON('/_/sparkline/' + s.symbol + '/');
+            if (!d.values.length) continue;
+            const up = d.values[d.values.length-1] >= d.values[0];
+            this.sparkCharts[id] = new Chart(el.getContext('2d'), {
+              type: 'line',
+              data: { labels: d.values.map((_,i)=>i), datasets: [{ data: d.values, borderColor: up ? '#34e5b5' : '#f43f5e', borderWidth: 1.5, pointRadius: 0, tension: .35 }] },
+              options: { responsive: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } }, animation: false },
+            });
+          } catch (e) {}
+        }
+      },
+    };
+  }
+</script>
+{% endblock %}
