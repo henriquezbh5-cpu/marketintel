@@ -62,3 +62,6 @@ Thumbs.db
 # Celery beat runtime
 celerybeat-schedule
 celerybeat.pid
+
+# Claude Code personal overrides
+.claude/settings.local.json
