@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 # ─── Periodic tasks ───────────────────────────────────────────
 app.conf.beat_schedule = {
-    "ingest-prices-1m": {
-        "task": "pipelines.tasks.ingest.ingest_prices_for_active_instruments",
+    "ingest-equities-1m": {
+        "task": "pipelines.tasks.yahoo.ingest_yahoo_spot_for_active",
         "schedule": crontab(minute="*"),
         "options": {"queue": "ingest", "expires": 50},
     },

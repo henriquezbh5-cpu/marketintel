@@ -45,12 +45,14 @@ seed: ## Load initial fixtures (sources + instruments)
 	$(COMPOSE) exec web python manage.py loaddata seeds/sources.json seeds/instruments.json
 
 # ─── Pipeline ops ───────────────────────────────────────────────
-ingest: ## Trigger a CoinGecko spot ingest (synchronous)
-	$(COMPOSE) exec web python manage.py ingest --source coingecko
+ingest: ## Trigger a Yahoo Finance quote ingest for all active instruments
+	$(COMPOSE) exec web python -c "from pipelines.tasks.yahoo import ingest_yahoo_spot_for_active; print(ingest_yahoo_spot_for_active.apply().get())"
 
-backfill: ## Backfill candles for top symbols (override SYMBOLS=BTCUSDT,ETHUSDT)
-	$(COMPOSE) exec web python manage.py ingest --source binance \
-		--symbols $${SYMBOLS:-BTCUSDT,ETHUSDT,SOLUSDT} --resolution 1m --limit 1440
+backfill: ## Backfill OHLCV bars (override SYMBOLS=AAPL,MSFT,NVDA)
+	$(COMPOSE) exec web python -c "from pipelines.tasks.yahoo import ingest_yahoo_candles; \
+[ingest_yahoo_candles.apply(args=(s,), kwargs={'resolution': r}) \
+ for s in '$${SYMBOLS:-AAPL,MSFT,NVDA,SPY}'.split(',') \
+ for r in ('1m','5m','15m','1h','1d')]"
 
 # ─── Tests ──────────────────────────────────────────────────────
 test: ## Run the full test suite

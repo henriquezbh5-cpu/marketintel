@@ -3,10 +3,10 @@
     "model": "instruments.source",
     "pk": 1,
     "fields": {
-      "code": "coingecko",
-      "name": "CoinGecko",
-      "base_url": "https://api.coingecko.com/api/v3",
-      "docs_url": "https://www.coingecko.com/api/documentation",
+      "code": "yahoo_finance",
+      "name": "Yahoo Finance",
+      "base_url": "https://query1.finance.yahoo.com",
+      "docs_url": "https://finance.yahoo.com/",
       "is_active": true,
       "created_at": "2026-01-01T00:00:00Z",
       "updated_at": "2026-01-01T00:00:00Z"
@@ -16,11 +16,11 @@
     "model": "instruments.source",
     "pk": 2,
     "fields": {
-      "code": "binance",
-      "name": "Binance",
-      "base_url": "https://api.binance.com",
-      "docs_url": "https://binance-docs.github.io/apidocs/spot/en/",
-      "is_active": true,
+      "code": "alpha_vantage",
+      "name": "Alpha Vantage",
+      "base_url": "https://www.alphavantage.co",
+      "docs_url": "https://www.alphavantage.co/documentation/",
+      "is_active": false,
       "created_at": "2026-01-01T00:00:00Z",
       "updated_at": "2026-01-01T00:00:00Z"
     }
@@ -29,11 +29,11 @@
     "model": "instruments.source",
     "pk": 3,
     "fields": {
-      "code": "cryptopanic",
-      "name": "CryptoPanic",
-      "base_url": "https://cryptopanic.com/api/v1",
-      "docs_url": "https://cryptopanic.com/developers/api/",
-      "is_active": true,
+      "code": "finnhub",
+      "name": "Finnhub",
+      "base_url": "https://finnhub.io/api/v1",
+      "docs_url": "https://finnhub.io/docs/api",
+      "is_active": false,
       "created_at": "2026-01-01T00:00:00Z",
       "updated_at": "2026-01-01T00:00:00Z"
     }

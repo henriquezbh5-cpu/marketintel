@@ -1,56 +1,20 @@
 [
-  {
-    "model": "instruments.instrument",
-    "pk": 1,
-    "fields": {
-      "source": 1,
-      "external_id": "bitcoin",
-      "symbol": "BTC",
-      "name": "Bitcoin",
-      "asset_class": "crypto",
-      "quote_currency": "USD",
-      "metadata": {"market_cap_rank": 1},
-      "valid_from": "2009-01-03T00:00:00Z",
-      "valid_to": null,
-      "is_current": true,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  },
-  {
-    "model": "instruments.instrument",
-    "pk": 2,
-    "fields": {
-      "source": 1,
-      "external_id": "ethereum",
-      "symbol": "ETH",
-      "name": "Ethereum",
-      "asset_class": "crypto",
-      "quote_currency": "USD",
-      "metadata": {"market_cap_rank": 2},
-      "valid_from": "2015-07-30T00:00:00Z",
-      "valid_to": null,
-      "is_current": true,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  },
-  {
-    "model": "instruments.instrument",
-    "pk": 3,
-    "fields": {
-      "source": 1,
-      "external_id": "solana",
-      "symbol": "SOL",
-      "name": "Solana",
-      "asset_class": "crypto",
-      "quote_currency": "USD",
-      "metadata": {"market_cap_rank": 5},
-      "valid_from": "2020-04-10T00:00:00Z",
-      "valid_to": null,
-      "is_current": true,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  }
+  {"model": "instruments.instrument", "pk": 1,  "fields": {"source": 1, "external_id": "AAPL",  "symbol": "AAPL",  "name": "Apple Inc.",                "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Technology",          "exchange": "NASDAQ"}, "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 2,  "fields": {"source": 1, "external_id": "MSFT",  "symbol": "MSFT",  "name": "Microsoft Corporation",     "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Technology",          "exchange": "NASDAQ"}, "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 3,  "fields": {"source": 1, "external_id": "GOOGL", "symbol": "GOOGL", "name": "Alphabet Inc.",             "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Communication",       "exchange": "NASDAQ"}, "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 4,  "fields": {"source": 1, "external_id": "AMZN",  "symbol": "AMZN",  "name": "Amazon.com, Inc.",          "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Consumer Discretionary","exchange": "NASDAQ"}, "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 5,  "fields": {"source": 1, "external_id": "NVDA",  "symbol": "NVDA",  "name": "NVIDIA Corporation",        "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Technology",          "exchange": "NASDAQ"}, "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 6,  "fields": {"source": 1, "external_id": "META",  "symbol": "META",  "name": "Meta Platforms, Inc.",      "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Communication",       "exchange": "NASDAQ"}, "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 7,  "fields": {"source": 1, "external_id": "TSLA",  "symbol": "TSLA",  "name": "Tesla, Inc.",               "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Consumer Discretionary","exchange": "NASDAQ"}, "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 8,  "fields": {"source": 1, "external_id": "JPM",   "symbol": "JPM",   "name": "JPMorgan Chase & Co.",      "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Financial Services",  "exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 9,  "fields": {"source": 1, "external_id": "V",     "symbol": "V",     "name": "Visa Inc.",                 "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Financial Services",  "exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 10, "fields": {"source": 1, "external_id": "WMT",   "symbol": "WMT",   "name": "Walmart Inc.",              "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Consumer Staples",    "exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 11, "fields": {"source": 1, "external_id": "JNJ",   "symbol": "JNJ",   "name": "Johnson & Johnson",         "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Health Care",         "exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 12, "fields": {"source": 1, "external_id": "XOM",   "symbol": "XOM",   "name": "Exxon Mobil Corporation",   "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Energy",              "exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 13, "fields": {"source": 1, "external_id": "UNH",   "symbol": "UNH",   "name": "UnitedHealth Group",        "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Health Care",         "exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 14, "fields": {"source": 1, "external_id": "HD",    "symbol": "HD",    "name": "The Home Depot, Inc.",      "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Consumer Discretionary","exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 15, "fields": {"source": 1, "external_id": "DIS",   "symbol": "DIS",   "name": "The Walt Disney Company",   "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Communication",       "exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 16, "fields": {"source": 1, "external_id": "^GSPC", "symbol": "SPX",   "name": "S&P 500 Index",             "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Index",               "exchange": "SNP"},    "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 17, "fields": {"source": 1, "external_id": "^IXIC", "symbol": "IXIC",  "name": "NASDAQ Composite",          "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "Index",               "exchange": "NASDAQ"}, "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "instruments.instrument", "pk": 18, "fields": {"source": 1, "external_id": "SPY",   "symbol": "SPY",   "name": "SPDR S&P 500 ETF Trust",    "asset_class": "equity", "quote_currency": "USD", "metadata": {"sector": "ETF",                 "exchange": "NYSE"},   "valid_from": "2020-01-01T00:00:00Z", "valid_to": null, "is_current": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}}
 ]

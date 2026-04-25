@@ -221,14 +221,14 @@
           {
             label: 'Spot prices',
             value: MI.fmt.age(d.freshness.spot),
-            sub: 'CoinGecko · 1m cadence',
+            sub: 'Yahoo Finance · 1m cadence',
             dotClass: isFresh(d.freshness.spot) ? 'bg-mint-500 animate-pulse-slow' : 'bg-rose-500',
             glow: isFresh(d.freshness.spot) ? 'bg-mint-500' : 'bg-rose-500',
           },
           {
             label: 'OHLCV',
             value: MI.fmt.age(d.freshness.candle),
-            sub: 'Binance klines',
+            sub: 'OHLCV bars',
             dotClass: isFresh(d.freshness.candle) ? 'bg-mint-500 animate-pulse-slow' : 'bg-rose-500',
             glow: isFresh(d.freshness.candle) ? 'bg-iris-500' : 'bg-rose-500',
           },
