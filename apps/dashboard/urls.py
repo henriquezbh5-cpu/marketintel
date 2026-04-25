@@ -10,6 +10,7 @@ urlpatterns = [
     path("markets/<str:symbol>/", views.symbol_detail, name="symbol"),
     path("news/", views.news, name="news"),
     path("system/", views.system, name="system"),
+    path("coverage/", views.coverage, name="coverage"),
 
     # JSON endpoints for client-side polling
     path("_/kpis/",                  views.api_kpis,        name="api-kpis"),

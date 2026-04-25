@@ -63,6 +63,10 @@ def system(request: HttpRequest):
     return render(request, "dashboard/system.html", {"page": "system"})
 
 
+def coverage(request: HttpRequest):
+    return render(request, "dashboard/coverage.html", {"page": "coverage"})
+
+
 # ────────────────────────────────────────────────────────────────────
 # JSON endpoints for client-side polling
 # ────────────────────────────────────────────────────────────────────
