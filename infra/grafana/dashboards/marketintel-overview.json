@@ -1,0 +1,94 @@
+{
+  "title": "MarketIntel — Overview",
+  "uid": "marketintel-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["marketintel"],
+  "time": {"from": "now-6h", "to": "now"},
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "constant",
+        "current": {"value": "marketintel", "text": "marketintel"},
+        "query": "marketintel"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "API request rate",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [{"expr": "sum(rate(django_http_requests_total_by_method_total[1m]))"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "5xx error rate",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "targets": [
+        {"expr": "sum(rate(django_http_responses_total_by_status_total{status=~\"5..\"}[5m])) / sum(rate(django_http_requests_total_by_method_total[5m]))"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.05}]}}}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "API latency (p50/p95/p99)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.99, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Celery tasks/min by state",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {"expr": "sum by (state) (rate(celery_tasks_total[1m]))", "legendFormat": "{{state}}"}
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Connector requests by source",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {"expr": "sum by (source) (rate(connector_request_count[1m]))", "legendFormat": "{{source}}"}
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "DLQ size",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16},
+      "targets": [{"expr": "marketintel_dlq_size"}],
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 50}]}}}
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Data freshness (CoinGecko, s)",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16},
+      "targets": [{"expr": "time() - max(marketintel_last_ingest_ts{source=\"coingecko\"})"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Rows written per layer",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "targets": [
+        {"expr": "sum by (layer) (rate(pipeline_rows_written[1m]))", "legendFormat": "{{layer}}"}
+      ]
+    }
+  ]
+}

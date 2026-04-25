@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: marketintel
+  namespace: marketintel
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: 4m
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [api.marketintel.example.com]
+      secretName: marketintel-tls
+  rules:
+    - host: api.marketintel.example.com
+      http:
+        paths:
+          - {path: /,           pathType: Prefix, backend: {service: {name: web,     port: {number: 80}}}}
+          - {path: /dagster,    pathType: Prefix, backend: {service: {name: dagster, port: {number: 80}}}}

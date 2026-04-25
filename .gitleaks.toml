@@ -1,0 +1,14 @@
+title = "MarketIntel gitleaks config"
+
+[allowlist]
+description = "Allowlisted patterns"
+paths = [
+    '''\.env\.example$''',
+    '''README\.md$''',
+    '''docs/.*''',
+    '''tests/.*''',
+]
+regexes = [
+    '''insecure-default-change-me''',
+    '''minioadmin''',
+]

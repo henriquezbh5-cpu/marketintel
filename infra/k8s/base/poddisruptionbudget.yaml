@@ -1,0 +1,17 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-pdb
+  namespace: marketintel
+spec:
+  minAvailable: 2
+  selector: {matchLabels: {app: marketintel, component: web}}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: worker-pdb
+  namespace: marketintel
+spec:
+  minAvailable: 50%
+  selector: {matchLabels: {app: marketintel, component: worker}}

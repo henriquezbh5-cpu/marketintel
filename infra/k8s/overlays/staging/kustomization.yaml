@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: marketintel-staging
+
+resources:
+  - ../../base
+
+namePrefix: staging-
+
+patches:
+  - path: replicas.yaml
+  - path: image.yaml
+
+configMapGenerator:
+  - name: marketintel-config
+    behavior: merge
+    literals:
+      - DJANGO_ALLOWED_HOSTS=staging.marketintel.example.com
+      - LOG_LEVEL=DEBUG

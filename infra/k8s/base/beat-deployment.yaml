@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beat
+  namespace: marketintel
+  labels: {app: marketintel, component: beat}
+spec:
+  # Beat is a singleton — running multiple replicas double-fires schedules.
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: marketintel, component: beat}
+  template:
+    metadata:
+      labels: {app: marketintel, component: beat}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: beat
+          image: ghcr.io/humberto/marketintel:latest
+          command: ["celery", "-A", "config", "beat",
+                    "-l", "INFO",
+                    "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
+          envFrom:
+            - configMapRef: {name: marketintel-config}
+            - secretRef:    {name: marketintel-secrets}
+          resources:
+            requests: {cpu: 50m,  memory: 128Mi}
+            limits:   {cpu: 200m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}

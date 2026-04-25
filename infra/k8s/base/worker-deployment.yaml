@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: marketintel
+  labels: {app: marketintel, component: worker}
+spec:
+  replicas: 4
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: {app: marketintel, component: worker}
+  template:
+    metadata:
+      labels: {app: marketintel, component: worker}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: worker
+          image: ghcr.io/humberto/marketintel:latest
+          command: ["celery", "-A", "config", "worker",
+                    "-l", "INFO",
+                    "-Q", "default,ingest,transform,dlq",
+                    "-c", "4",
+                    "--max-tasks-per-child", "200"]
+          envFrom:
+            - configMapRef: {name: marketintel-config}
+            - secretRef:    {name: marketintel-secrets}
+          resources:
+            requests: {cpu: 250m, memory: 384Mi}
+            limits:   {cpu: "2",  memory: 1Gi}
+          livenessProbe:
+            exec:
+              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: tmp, emptyDir: {}}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker
+  namespace: marketintel
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 4
+  maxReplicas: 30
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 70}

@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-default
+  namespace: marketintel
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-ingress
+  namespace: marketintel
+spec:
+  podSelector: {matchLabels: {app: marketintel, component: web}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {name: ingress-nginx}}
+      ports: [{port: 8000, protocol: TCP}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internal-egress
+  namespace: marketintel
+spec:
+  podSelector: {matchLabels: {app: marketintel}}
+  policyTypes: [Egress]
+  egress:
+    # Allow DNS
+    - to: [{namespaceSelector: {}, podSelector: {matchLabels: {k8s-app: kube-dns}}}]
+      ports: [{port: 53, protocol: UDP}]
+    # Internal cluster traffic
+    - to: [{podSelector: {matchLabels: {app: marketintel}}}]
+    # Outbound HTTPS for third-party APIs
+    - to: [{ipBlock: {cidr: 0.0.0.0/0, except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]}}]
+      ports:
+        - {port: 443, protocol: TCP}
+        - {port: 80,  protocol: TCP}

@@ -1,0 +1,10 @@
+# Staging image is overridden by CI to the per-commit tag.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web}
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/humberto/marketintel:staging

@@ -1,0 +1,50 @@
+# Demo-grade Postgres for staging. In real prod use a managed DB (RDS/CloudSQL)
+# or a proper Postgres operator (CNPG, Zalando). This statefulset is enough to
+# run the full stack in a kind/minikube cluster.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: marketintel
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: {matchLabels: {app: marketintel, component: postgres}}
+  template:
+    metadata: {labels: {app: marketintel, component: postgres}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{name: pg, containerPort: 5432}]
+          envFrom:
+            - configMapRef: {name: marketintel-config}
+            - secretRef:    {name: marketintel-secrets}
+          env:
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          resources:
+            requests: {cpu: 200m, memory: 512Mi}
+            limits:   {cpu: 1,    memory: 2Gi}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: init, mountPath: /docker-entrypoint-initdb.d}
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", "marketintel"]}
+            periodSeconds: 5
+      volumes:
+        - name: init
+          configMap: {name: marketintel-postgres-init}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 50Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: postgres, namespace: marketintel}
+spec:
+  type: ClusterIP
+  clusterIP: None  # headless for stable DNS
+  selector: {app: marketintel, component: postgres}
+  ports: [{name: pg, port: 5432, targetPort: 5432}]

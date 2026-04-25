@@ -1,0 +1,21 @@
+# Run on every deploy via a Helm hook or Argo sync wave.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: migrate-
+  namespace: marketintel
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: ghcr.io/humberto/marketintel:latest
+          command: ["python", "manage.py", "migrate", "--noinput"]
+          envFrom:
+            - configMapRef: {name: marketintel-config}
+            - secretRef:    {name: marketintel-secrets}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits:   {cpu: 500m, memory: 512Mi}

@@ -1,0 +1,16 @@
+# Default owner for everything
+*       @humberto
+
+# Migrations & schema — extra scrutiny
+/apps/*/migrations/    @humberto
+/infra/postgres/       @humberto
+/docs/data-model.md    @humberto
+
+# Pipelines
+/pipelines/            @humberto
+
+# Infrastructure
+/infra/                @humberto
+/.github/              @humberto
+/Dockerfile            @humberto
+/docker-compose.yml    @humberto

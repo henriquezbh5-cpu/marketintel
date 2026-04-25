@@ -1,0 +1,45 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy to
+        required: true
+        type: choice
+        options: [staging, production]
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment || 'staging' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment || 'staging' }}
+      url: ${{ vars.SERVICE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Apply manifests
+        run: |
+          kubectl apply -k infra/k8s/overlays/${{ inputs.environment || 'staging' }}
+
+      - name: Wait for rollout
+        run: |
+          kubectl -n marketintel rollout status deploy/web --timeout=5m
+          kubectl -n marketintel rollout status deploy/worker --timeout=5m
+
+      - name: Run smoke test
+        run: |
+          curl -fsSL "${{ vars.SERVICE_URL }}/health/ready/" || exit 1

@@ -1,0 +1,40 @@
+groups:
+  - name: marketintel-api
+    rules:
+      - alert: APIHighErrorRate
+        expr: |
+          (
+            sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[5m]))
+            / sum(rate(django_http_requests_total_by_method_total[5m]))
+          ) > 0.05
+        for: 10m
+        labels: {severity: page}
+        annotations:
+          summary: "API 5xx error rate >5% for 10m"
+          runbook: https://wiki.example.com/runbooks/marketintel-api-errors
+
+      - alert: APILatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "API p95 latency > 1s sustained"
+
+  - name: marketintel-pipelines
+    rules:
+      - alert: PipelineFreshnessStale
+        expr: time() - max(marketintel_last_ingest_ts{source="coingecko"}) > 300
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: "CoinGecko ingest hasn't completed in 5+ minutes"
+
+      - alert: DLQGrowing
+        expr: increase(marketintel_dlq_inserts_total[15m]) > 10
+        for: 15m
+        labels: {severity: page}
+        annotations:
+          summary: "More than 10 tasks dead-lettered in 15m"

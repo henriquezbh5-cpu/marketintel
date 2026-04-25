@@ -1,0 +1,13 @@
+- op: replace
+  path: /spec/replicas
+  value: 5
+target:
+  kind: Deployment
+  name: web
+---
+- op: replace
+  path: /spec/replicas
+  value: 8
+target:
+  kind: Deployment
+  name: worker

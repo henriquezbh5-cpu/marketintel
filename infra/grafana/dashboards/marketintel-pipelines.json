@@ -1,0 +1,57 @@
+{
+  "title": "MarketIntel — Pipelines",
+  "uid": "marketintel-pipelines",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["marketintel", "pipelines"],
+  "time": {"from": "now-24h", "to": "now"},
+  "refresh": "1m",
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Last successful ingest by source",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {"expr": "max by (source) (marketintel_last_ingest_ts)", "format": "table", "instant": true}
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Connector latency by source (p95)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (source, le) (rate(connector_request_duration_seconds_bucket[5m])))", "legendFormat": "{{source}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Rate-limited responses",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "targets": [
+        {"expr": "sum by (source) (rate(connector_request_count{status=\"429\"}[5m]))", "legendFormat": "{{source}}"}
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Circuit breaker state changes",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {"expr": "sum by (source) (rate(connector_breaker_open_total[5m]))", "legendFormat": "{{source}}"}
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Celery queue depth",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 14},
+      "targets": [
+        {"expr": "celery_queue_length", "legendFormat": "{{queue}}"}
+      ]
+    }
+  ]
+}

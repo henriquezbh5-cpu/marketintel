@@ -1,0 +1,41 @@
+[
+  {
+    "model": "instruments.source",
+    "pk": 1,
+    "fields": {
+      "code": "coingecko",
+      "name": "CoinGecko",
+      "base_url": "https://api.coingecko.com/api/v3",
+      "docs_url": "https://www.coingecko.com/api/documentation",
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "instruments.source",
+    "pk": 2,
+    "fields": {
+      "code": "binance",
+      "name": "Binance",
+      "base_url": "https://api.binance.com",
+      "docs_url": "https://binance-docs.github.io/apidocs/spot/en/",
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "instruments.source",
+    "pk": 3,
+    "fields": {
+      "code": "cryptopanic",
+      "name": "CryptoPanic",
+      "base_url": "https://cryptopanic.com/api/v1",
+      "docs_url": "https://cryptopanic.com/developers/api/",
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  }
+]

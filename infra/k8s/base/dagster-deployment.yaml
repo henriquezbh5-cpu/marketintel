@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dagster
+  namespace: marketintel
+  labels: {app: marketintel, component: dagster}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}   # Dagster daemon is stateful
+  selector:
+    matchLabels: {app: marketintel, component: dagster}
+  template:
+    metadata:
+      labels: {app: marketintel, component: dagster}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: webserver
+          image: ghcr.io/humberto/marketintel:latest
+          command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000",
+                    "-w", "/app/pipelines/orchestration/workspace.yaml"]
+          ports:
+            - {name: http, containerPort: 3000}
+          envFrom:
+            - configMapRef: {name: marketintel-config}
+            - secretRef:    {name: marketintel-secrets}
+          env:
+            - {name: DAGSTER_HOME, value: /dagster_home}
+          resources:
+            requests: {cpu: 200m, memory: 384Mi}
+            limits:   {cpu: 1,    memory: 1Gi}
+          volumeMounts:
+            - {name: dagster-home, mountPath: /dagster_home}
+        - name: daemon
+          image: ghcr.io/humberto/marketintel:latest
+          command: ["dagster-daemon", "run",
+                    "-w", "/app/pipelines/orchestration/workspace.yaml"]
+          envFrom:
+            - configMapRef: {name: marketintel-config}
+            - secretRef:    {name: marketintel-secrets}
+          env:
+            - {name: DAGSTER_HOME, value: /dagster_home}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits:   {cpu: 500m, memory: 512Mi}
+          volumeMounts:
+            - {name: dagster-home, mountPath: /dagster_home}
+      volumes:
+        - name: dagster-home
+          persistentVolumeClaim: {claimName: dagster-home}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dagster-home
+  namespace: marketintel
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 10Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dagster
+  namespace: marketintel
+spec:
+  type: ClusterIP
+  selector: {app: marketintel, component: dagster}
+  ports:
+    - {name: http, port: 80, targetPort: 3000}

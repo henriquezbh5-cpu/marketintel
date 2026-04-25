@@ -1,0 +1,48 @@
+# DAGSTER_HOME config. Mounted at /dagster_home in containers.
+
+storage:
+  postgres:
+    postgres_db:
+      hostname:
+        env: POSTGRES_HOST
+      port:
+        env: POSTGRES_PORT
+      username:
+        env: POSTGRES_USER
+      password:
+        env: POSTGRES_PASSWORD
+      db_name:
+        env: POSTGRES_DB
+      params: {sslmode: prefer}
+
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+  config:
+    max_concurrent_runs: 10
+    tag_concurrency_limits:
+      - {key: source, value: coingecko, limit: 2}
+      - {key: source, value: binance,   limit: 4}
+
+run_launcher:
+  module: dagster.core.launcher.default_run_launcher
+  class: DefaultRunLauncher
+
+compute_logs:
+  module: dagster.core.storage.local_compute_log_manager
+  class: LocalComputeLogManager
+  config:
+    base_dir: /dagster_home/compute-logs
+
+local_artifact_storage:
+  module: dagster.core.storage.root
+  class: LocalArtifactStorage
+  config:
+    base_dir: /dagster_home/storage
+
+telemetry:
+  enabled: false
+
+retention:
+  schedule: {purge_after_days: 30}
+  sensor:   {purge_after_days: 30}

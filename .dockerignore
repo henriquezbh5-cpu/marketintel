@@ -1,0 +1,54 @@
+# Source control
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv
+venv
+env
+.tox
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Build artefacts
+build
+dist
+*.egg-info
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Local data
+*.sqlite3
+*.duckdb
+*.duckdb.wal
+dagster_home
+.dagster
+
+# Docs that don't ship
+docs
+notebooks
+examples
+tests
+
+# Compose / k8s
+docker-compose*.yml
+infra/k8s
+infra/grafana
+infra/prometheus
+
+# Env / secrets
+.env
+.env.*
+!.env.example

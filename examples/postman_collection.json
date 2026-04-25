@@ -1,0 +1,66 @@
+{
+  "info": {
+    "name": "MarketIntel API",
+    "_postman_id": "mi-collection-1",
+    "description": "MarketIntel data platform — REST API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {"key": "key", "value": "X-API-Key"},
+      {"key": "value", "value": "{{api_key}}"},
+      {"key": "in", "value": "header"}
+    ]
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8000"},
+    {"key": "api_key", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "Health — live",
+      "request": {"method": "GET", "url": "{{base_url}}/health/live/", "auth": {"type": "noauth"}}
+    },
+    {
+      "name": "Health — ready",
+      "request": {"method": "GET", "url": "{{base_url}}/health/ready/", "auth": {"type": "noauth"}}
+    },
+    {
+      "name": "Sources — list",
+      "request": {"method": "GET", "url": "{{base_url}}/api/v1/sources/"}
+    },
+    {
+      "name": "Instruments — list",
+      "request": {"method": "GET", "url": "{{base_url}}/api/v1/instruments/?asset_class=crypto"}
+    },
+    {
+      "name": "Instruments — by symbol",
+      "request": {"method": "GET", "url": "{{base_url}}/api/v1/instruments/BTC/"}
+    },
+    {
+      "name": "Candles — symbol + range",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/candles/?symbol=BTC&resolution=1m&ts_from=2026-04-24T00:00:00Z",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "candles", ""],
+          "query": [
+            {"key": "symbol", "value": "BTC"},
+            {"key": "resolution", "value": "1m"},
+            {"key": "ts_from", "value": "2026-04-24T00:00:00Z"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Spot — by symbol",
+      "request": {"method": "GET", "url": "{{base_url}}/api/v1/spot/BTC/"}
+    },
+    {
+      "name": "News — recent negative",
+      "request": {"method": "GET", "url": "{{base_url}}/api/v1/news/?sentiment=negative"}
+    }
+  ]
+}
