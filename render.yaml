@@ -1,0 +1,182 @@
+# Render blueprint — connect this repo via "New → Blueprint" on render.com
+# and Render reads this file on first deploy.
+#
+# Pre-flight steps in the Render dashboard after first deploy:
+#   1. Web service Shell tab:
+#        python manage.py loaddata seeds/sources.json seeds/instruments.json
+#        python manage.py createsuperuser
+#   2. Either trigger an ingest manually or wait for Beat (worker runs --beat)
+#        python manage.py shell -c "from pipelines.tasks.yahoo import ingest_yahoo_spot_for_active as t; t.apply().get()"
+#
+# Free tier notes:
+#   - Web sleeps after 15 min idle. Upgrade to Starter ($7/mo) for keep-alive.
+#   - Bronze (MinIO) is NOT provisioned on free; S3_* envs are blank by default.
+
+databases:
+  - name: marketintel-postgres
+    plan: free
+    databaseName: marketintel
+    user: marketintel
+
+services:
+  # ─── Redis ─────────────────────────────────────────────────
+  - type: redis
+    name: marketintel-redis
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+  # ─── Web (Django + dashboard + API) ────────────────────────
+  - type: web
+    name: marketintel-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health/ready/
+    autoDeploy: true
+    branch: main
+    # Run migrations + post_migrate before booting gunicorn.
+    dockerCommand: >-
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py apply_post_migrate &&
+             gunicorn config.wsgi:application
+               --bind 0.0.0.0:$PORT
+               --workers 2
+               --worker-class uvicorn.workers.UvicornWorker
+               --access-logfile - --error-logfile -"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: EXPOSE_ADMIN
+        value: "False"
+      - key: EXPOSE_METRICS
+        value: "False"
+
+      - key: POSTGRES_DB
+        fromDatabase: { name: marketintel-postgres, property: database }
+      - key: POSTGRES_USER
+        fromDatabase: { name: marketintel-postgres, property: user }
+      - key: POSTGRES_PASSWORD
+        fromDatabase: { name: marketintel-postgres, property: password }
+      - key: POSTGRES_HOST
+        fromDatabase: { name: marketintel-postgres, property: host }
+      - key: POSTGRES_PORT
+        fromDatabase: { name: marketintel-postgres, property: port }
+
+      - key: REDIS_URL
+        fromService: { type: redis, name: marketintel-redis, property: connectionString }
+      - key: CELERY_BROKER_URL
+        fromService: { type: redis, name: marketintel-redis, property: connectionString }
+      - key: CELERY_RESULT_BACKEND
+        fromService: { type: redis, name: marketintel-redis, property: connectionString }
+
+      - key: S3_ENDPOINT_URL
+        value: ""
+      - key: S3_ACCESS_KEY
+        value: ""
+      - key: S3_SECRET_KEY
+        value: ""
+      - key: S3_BRONZE_BUCKET
+        value: bronze
+      - key: S3_SILVER_BUCKET
+        value: silver
+      - key: S3_GOLD_BUCKET
+        value: gold
+      - key: S3_REGION
+        value: us-east-1
+
+      - key: COINGECKO_BASE_URL
+        value: https://api.coingecko.com/api/v3
+      - key: COINGECKO_API_KEY
+        value: ""
+      - key: COINGECKO_RATE_LIMIT_PER_MIN
+        value: "30"
+      - key: BINANCE_BASE_URL
+        value: https://api.binance.com
+      - key: BINANCE_RATE_LIMIT_PER_MIN
+        value: "1200"
+      - key: CRYPTOPANIC_BASE_URL
+        value: https://cryptopanic.com/api/v1
+      - key: CRYPTOPANIC_API_KEY
+        value: ""
+
+      - key: LOG_LEVEL
+        value: INFO
+      - key: ENABLE_DAGSTER_SENSORS
+        value: "False"
+
+  # ─── Worker + Beat ─────────────────────────────────────────
+  - type: worker
+    name: marketintel-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    autoDeploy: true
+    branch: main
+    dockerCommand: >-
+      sh -c "celery -A config worker
+             -l INFO
+             -Q default,ingest,transform,dlq
+             -c 2
+             --beat
+             --max-tasks-per-child 200"
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DJANGO_SECRET_KEY
+        sync: false   # paste manually after first web deploy generates one
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "*"
+
+      - key: POSTGRES_DB
+        fromDatabase: { name: marketintel-postgres, property: database }
+      - key: POSTGRES_USER
+        fromDatabase: { name: marketintel-postgres, property: user }
+      - key: POSTGRES_PASSWORD
+        fromDatabase: { name: marketintel-postgres, property: password }
+      - key: POSTGRES_HOST
+        fromDatabase: { name: marketintel-postgres, property: host }
+      - key: POSTGRES_PORT
+        fromDatabase: { name: marketintel-postgres, property: port }
+
+      - key: REDIS_URL
+        fromService: { type: redis, name: marketintel-redis, property: connectionString }
+      - key: CELERY_BROKER_URL
+        fromService: { type: redis, name: marketintel-redis, property: connectionString }
+      - key: CELERY_RESULT_BACKEND
+        fromService: { type: redis, name: marketintel-redis, property: connectionString }
+
+      - key: S3_ENDPOINT_URL
+        value: ""
+      - key: S3_ACCESS_KEY
+        value: ""
+      - key: S3_SECRET_KEY
+        value: ""
+      - key: S3_REGION
+        value: us-east-1
+
+      - key: COINGECKO_BASE_URL
+        value: https://api.coingecko.com/api/v3
+      - key: COINGECKO_RATE_LIMIT_PER_MIN
+        value: "30"
+      - key: BINANCE_BASE_URL
+        value: https://api.binance.com
+      - key: BINANCE_RATE_LIMIT_PER_MIN
+        value: "1200"
+      - key: CRYPTOPANIC_BASE_URL
+        value: https://cryptopanic.com/api/v1
+      - key: CRYPTOPANIC_API_KEY
+        value: ""
+
+      - key: LOG_LEVEL
+        value: INFO

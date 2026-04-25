@@ -1,54 +1,54 @@
 # MarketIntel — Architecture
 
-> Decisiones, trade-offs y diagramas de arquitectura. Para decisiones puntuales
-> con su contexto histórico ver [`docs/adr/`](docs/adr/).
+> Decisions, trade-offs and architecture diagrams. For point-in-time decisions
+> with their historical context see [`docs/adr/`](docs/adr/).
 
 ---
 
-## 1. Objetivos no funcionales
+## 1. Non-functional objectives
 
-| Atributo | Target |
+| Attribute | Target |
 |---|---|
-| Throughput de ingesta | 5K instrumentos × 1 min cadence sostenida |
-| Latencia API (p95) | < 200 ms para queries por símbolo y rango |
-| Frescura de datos | < 60 s desde fuente para precios spot |
-| Idempotencia | 100% — re-ejecutar cualquier ventana no genera duplicados |
-| Recuperación | Backfill manual de cualquier rango histórico via Dagster |
-| Observabilidad | Logs estructurados, métricas Prometheus, traces OTel |
+| Ingestion throughput | 5K instruments × 1 min cadence sustained |
+| API latency (p95) | < 200 ms for symbol+range queries |
+| Data freshness | < 60 s from upstream for spot prices |
+| Idempotency | 100% — re-running any window does not produce duplicates |
+| Recovery | Manual backfill of any historical range via Dagster |
+| Observability | Structured logs, Prometheus metrics, OTel traces |
 
 ---
 
-## 2. Capas de datos (Medallion)
+## 2. Data layers (Medallion)
 
 ### Bronze — raw
-- **Storage**: MinIO (S3-compat) en JSON Lines comprimido (gzip)
+- **Storage**: MinIO (S3-compatible) as gzip-compressed JSON Lines
 - **Layout**: `s3://bronze/<source>/<entity>/dt=YYYY-MM-DD/hh=HH/<run_id>.jsonl.gz`
-- **Inmutable**: nada se sobrescribe. El run_id distingue ejecuciones.
-- **Razón**: replay determinista, auditoría, debugging de transformaciones.
+- **Immutable**: nothing is overwritten. The run_id distinguishes runs.
+- **Why**: deterministic replay, audit, debugging of transformations.
 
-### Silver — clean & normalized
+### Silver — clean & normalised
 - **Storage**: PostgreSQL 16
-- **Schema**: `silver` (separado de `public` que sirve API)
-- **Reglas**: tipos correctos, FKs a dimensiones, deduplicación, validación.
-- **Carga**: `INSERT ... ON CONFLICT DO UPDATE` con clave natural por (source, external_id, ts).
+- **Schema**: separated from gold materialised views
+- **Rules**: correct types, FKs to dimensions, deduplication, validation.
+- **Loading**: `INSERT ... ON CONFLICT DO UPDATE` keyed on (source, external_id, ts).
 
 ### Gold — aggregates & marts
-- **Storage**: PostgreSQL materialized views + DuckDB para analítica pesada
-- **Refresh**: Dagster schedules (1m / 5m / 1h dependiendo del mart)
-- **Razón**: consultas API < 200 ms sin pegarle al fact partitionado por minuto.
+- **Storage**: PostgreSQL materialised views + DuckDB for heavy analytics
+- **Refresh**: Dagster schedules / Celery beat (1m / 5m / 1h depending on the mart)
+- **Why**: API queries < 200 ms without hitting the per-minute partitioned fact.
 
 ---
 
-## 3. Modelo dimensional
+## 3. Dimensional model
 
 ```
                      ┌─────────────────┐
-                     │   dim_source    │   (CoinGecko, Binance, ...)
+                     │   dim_source    │   (Yahoo Finance, Binance, ...)
                      └────────┬────────┘
                               │
                      ┌────────v────────┐
-                     │ dim_instrument  │   SCD2: tracks rebrand, ticker
-                     │ valid_from/to   │   change, listing/delisting
+                     │ dim_instrument  │   SCD Type 2: tracks ticker change,
+                     │ valid_from/to   │   rebrand, listing/delisting
                      │ is_current      │
                      └────────┬────────┘
                               │
@@ -61,44 +61,44 @@
        └────────────┘  └────────────┘  └────────────┘
 ```
 
-**Particionamiento** (PostgreSQL declarative partitioning):
-- `fact_price` particionada por `RANGE (ts)` mensual. Auto-creación de particiones
-  vía Dagster sensor que corre el día 25 de cada mes.
-- Índices BRIN sobre `ts` (mucho más baratos que B-tree para append-only time-series).
-- B-tree compuesto sobre `(instrument_id, ts DESC)` para queries por símbolo.
+**Partitioning** (PostgreSQL declarative partitioning):
+- `fact_price_candle` partitioned by `RANGE (ts)` monthly. Future partitions
+  auto-created by a Celery maintenance task on the 25th of every month.
+- BRIN index on `ts` (much cheaper than B-tree for append-only time-series).
+- Composite B-tree on `(instrument_id, ts DESC)` for per-symbol queries.
 
-**SCD2 en dim_instrument**:
-- `valid_from`, `valid_to`, `is_current` (parcial-indexado donde `is_current=true`).
-- Trigger que cierra el registro previo al insertar uno nuevo con la misma natural key.
+**SCD Type 2 on `dim_instrument`**:
+- `valid_from`, `valid_to`, `is_current` (partial unique index where `is_current = TRUE`).
+- The service layer closes the previous version when a tracked attribute changes.
 
-Ver [`docs/data-model.md`](docs/data-model.md) para DDL completo.
+See [`docs/data-model.md`](docs/data-model.md) for full DDL.
 
 ---
 
-## 4. Procesamiento distribuido
+## 4. Distributed processing
 
-### Por qué Celery + Dagster (no uno solo)
+### Why Celery + Dagster (not just one)
 
-Son herramientas con propósitos distintos que se complementan:
+These tools serve different purposes and complement each other:
 
 | | Dagster | Celery |
 |---|---|---|
-| Modelo | Asset graph (declarativo) | Task queue (imperativo) |
-| Granularidad | Pipeline / dataset | Función / unidad de trabajo |
-| Schedules / sensors | Sí, nativo | Beat (más limitado) |
-| Lineage / metadata | Sí, first-class | No |
-| Paralelismo masivo | Limitado | Ilimitado (workers horizontales) |
+| Model | Asset graph (declarative) | Task queue (imperative) |
+| Granularity | Pipeline / dataset | Function / unit of work |
+| Schedules / sensors | Yes, native | Beat (more limited) |
+| Lineage / metadata | Yes, first-class | No |
+| Massive parallelism | Limited | Unlimited (horizontal workers) |
 
-**Patrón**: Dagster define el DAG de assets (`raw_prices` → `clean_prices` → `price_marts`).
-Cada asset que requiere paralelismo masivo (ej. fetch de 5K símbolos) **delega a
-Celery** vía `chord`/`group`. Dagster espera el resultado y publica el asset.
+**Pattern**: Dagster owns the asset DAG (`raw_prices` → `clean_prices` → `price_marts`).
+Any asset that needs heavy fan-out (e.g. fetch 5K symbols) **delegates to Celery**
+via `chord` / `group`. Dagster waits for the result and publishes the asset.
 
 ```python
 # pipelines/orchestration/assets.py
 @asset(partitions_def=DailyPartitionsDefinition(start_date="2024-01-01"))
 def raw_prices(context):
     symbols = list_active_symbols()
-    # Fan-out paralelo via Celery
+    # Parallel fan-out via Celery
     results = group(
         fetch_prices_task.s(sym, context.partition_key)
         for sym in symbols
@@ -106,85 +106,106 @@ def raw_prices(context):
     return results.get(timeout=600)
 ```
 
-### Garantías de las tasks Celery
+### Guarantees of every Celery task
 
-Cada `pipelines.tasks.*` cumple:
-1. **Idempotente**: clave natural + `ON CONFLICT`. Re-ejecutar es seguro.
-2. **Retries con jitter**: `autoretry_for=(httpx.HTTPError,)`, `retry_backoff=True`,
+Each `pipelines.tasks.*` task obeys:
+1. **Idempotent**: natural key + `ON CONFLICT`. Re-running is safe.
+2. **Retries with jitter**: `autoretry_for=(httpx.HTTPError,)`, `retry_backoff=True`,
    `retry_jitter=True`, `max_retries=5`.
-3. **Time-bounded**: `soft_time_limit` siempre menor que `time_limit`.
-4. **Observable**: structlog con `task_id`, `source`, `symbol`, `partition`.
-5. **Dead-letter**: si excede retries, va a queue `dlq` para inspección manual.
+3. **Time-bounded**: `soft_time_limit` always less than `time_limit`.
+4. **Observable**: structlog with `task_id`, `source`, `symbol`, `partition`.
+5. **Dead-letter**: when retries are exhausted, the failure is persisted to the
+   `core_dead_letter_task` table for manual review / requeue.
 
 ---
 
-## 5. Conectores a terceros
+## 5. Third-party connectors
 
-### Diseño
+### Design
 
 ```
-pipelines/connectors/base.py        — Protocol + base con retries, rate limit, OTel
-pipelines/connectors/coingecko.py   — Adapter
-pipelines/connectors/binance.py     — Adapter
-pipelines/connectors/cryptopanic.py — Adapter
+pipelines/connectors/base.py            — Protocol + base with retries, rate limit, metrics
+pipelines/connectors/yahoo_finance.py   — Equity quotes & OHLCV (no API key)
+pipelines/connectors/binance.py         — Crypto OHLCV (alternate)
+pipelines/connectors/coingecko.py       — Crypto spot prices (alternate)
+pipelines/connectors/cryptopanic.py     — News with sentiment (alternate)
 ```
 
-Cada conector implementa `BaseConnector` con:
-- `fetch(entity, params) -> AsyncIterator[dict]` — streaming de raw rows
-- `normalize(raw) -> NormalizedRecord` — pydantic model con schema validado
-- `rate_limit` — token bucket por API (configurable por env)
-- `circuit_breaker` — abre tras N fallos consecutivos, half-open con probe
+Every connector implements `BaseConnector` and provides:
+- Endpoint methods that return typed dataclasses (no leaky upstream JSON in callers)
+- Token-bucket rate limiting per instance
+- Circuit breaker (closed / open / half-open with probe)
+- Structured logs + Prometheus metrics on every request
 
-### Por qué no SDK oficiales
+### Why not vendor SDKs
 
-- Control total sobre retries, rate limit, observabilidad.
-- Algunos SDKs no son async; bloquean event loop.
-- Versionado: el contrato es nuestro, no del proveedor. Si CoinGecko cambia un
-  endpoint solo tocamos el adapter.
+- Full control over retries, rate limiting, observability
+- Some SDKs are sync-only and block the event loop
+- Versioning: the contract is ours, not the provider's. If Yahoo changes an
+  endpoint, only the adapter touches it
 
 ---
 
 ## 6. API layer
 
 ### Stack
-- DRF con `ModelViewSet` para CRUD básicos.
-- `django-filter` para query params tipados.
-- `drf-spectacular` para OpenAPI 3.1 schema.
-- Autenticación: API key con scope (read vs write). JWT futuro si llega frontend.
+- DRF with `ModelViewSet` and `ReadOnlyModelViewSet`
+- `django-filter` for typed query parameters
+- `drf-spectacular` for OpenAPI 3.1 schema
+- Authentication: API key with scope (read / write / admin); session auth for the admin
 
 ### Throttling
-- Por API key, configurable por scope.
-- Burst + sustained (DRF `ScopedRateThrottle`).
+- Per API key, scoped per endpoint group
+- Burst + sustained limits (`apps.api.throttling.APIKeyScopedThrottle`)
 
-### Cacheo
-- `cache_page` en endpoints de catálogo (instrumentos, sources).
-- Redis backend con TTL corto (60s) para precios spot.
-- ETag/`Last-Modified` en endpoints time-series para clientes incrementales.
+### Caching
+- Redis backend with short TTL (60 s) for spot prices
+- ETag / `Last-Modified` on time-series endpoints for incremental clients
+
+### Pagination
+- Cursor pagination for time-series (candles, news) — keyset-friendly
+- Limit/offset for catalogue endpoints (instruments, sources)
 
 ---
 
-## 7. Decisiones tomadas (resumen)
+## 7. Web dashboard
 
-| ADR | Decisión |
+`apps/dashboard/` — server-rendered with Django templates, hydrated with
+Alpine.js + Chart.js. Direct ORM access (no internal HTTP roundtrip), polling
+JSON endpoints for live updates.
+
+Pages:
+- `/` Overview with KPIs, featured chart, top movers, watchlist, news, status
+- `/markets/` All instruments table with live prices and inline sparklines
+- `/markets/<symbol>/` Multi-resolution candle chart with 8 computed stats
+- `/news/` Sentiment-filtered news feed
+- `/system/` Pipeline health: freshness, DLQ, partitions, sources
+- `/coverage/` Bullet-by-bullet mapping back to the role spec
+
+---
+
+## 8. Decisions taken (summary)
+
+| ADR | Decision |
 |---|---|
-| 0001 | Django como backend, no FastAPI standalone |
-| 0002 | Celery, no RQ ni arq |
-| 0003 | Dagster, no Airflow ni Prefect |
-| 0004 | Medallion bronze/silver/gold |
-| 0005 | PostgreSQL declarative partitioning, no Citus ni Timescale |
-| 0006 | DuckDB como capa analítica embebida |
-| 0007 | structlog + OTel, no logging stdlib directo |
+| 0001 | Django as backend, not FastAPI standalone |
+| 0002 | Celery, not RQ or arq |
+| 0003 | Dagster, not Airflow or Prefect |
+| 0004 | Medallion bronze / silver / gold |
+| 0005 | PostgreSQL declarative partitioning, not Citus or Timescale |
+| 0006 | DuckDB as embedded analytical layer |
+| 0007 | structlog + OTel, not stdlib logging directly |
 
 ---
 
-## 8. Lo que falta para producción
+## 9. What's missing for production
 
-Honestidad sobre el alcance:
+Honest about scope:
 
-- [ ] Auth real (OIDC / SSO), hoy es API key simple.
-- [ ] Backups automatizados de Postgres (pgBackRest).
-- [ ] Multi-tenancy (hoy es single-tenant).
-- [ ] CDC para sincronizar a un warehouse externo (Snowflake/BigQuery).
-- [ ] Alerting policies en Grafana (latencia, error rate, freshness).
-- [ ] Pipeline de embeddings + vector search para news (esbozado, no implementado).
-- [ ] CI/CD completo con migrations gating en staging.
+- [ ] Real auth (OIDC / SSO), today it's a simple API key
+- [ ] Automated Postgres backups (pgBackRest or managed)
+- [ ] Multi-tenancy (today it's single-tenant)
+- [ ] CDC to sync to an external warehouse (Snowflake / BigQuery)
+- [ ] Grafana alerting policies (latency, error rate, freshness)
+- [ ] Embeddings + vector search pipeline for news (sketched, not implemented)
+- [ ] Migrations gating in staging before production rollout

@@ -1,10 +1,17 @@
 # Railway deploy configuration.
 # Reference: https://docs.railway.app/reference/config-as-code
 #
-# Railway provisions Postgres + Redis as managed plugins and we deploy two
-# services (web + worker) from this repo. Beat is folded into worker via
-# `--beat` to keep the service count down (acceptable for a portfolio demo;
-# for production split it back out as in the docker-compose).
+# Railway provisions Postgres + Redis as managed plugins; we deploy two
+# services (web + worker) from this repo. Beat is folded into the worker
+# via `--beat` to keep the service count down (acceptable for a demo;
+# split it back out as in docker-compose for production).
+#
+# Setup:
+#   1. railway.app → New Project → Deploy from GitHub → pick this repo
+#   2. + New → Database → Postgres (provisions DATABASE_URL)
+#   3. + New → Database → Redis (provisions REDIS_URL)
+#   4. Add a second service from the same repo for the worker; override
+#      its start command with the celery line below.
 
 [build]
 builder = "DOCKERFILE"
