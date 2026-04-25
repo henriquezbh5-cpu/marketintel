@@ -58,3 +58,7 @@ dagster_home/
 
 # OS
 Thumbs.db
+
+# Celery beat runtime
+celerybeat-schedule
+celerybeat.pid
