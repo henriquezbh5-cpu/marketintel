@@ -1,0 +1,34 @@
+# Railway deploy configuration.
+# Reference: https://docs.railway.app/reference/config-as-code
+#
+# Railway provisions Postgres + Redis as managed plugins and we deploy two
+# services (web + worker) from this repo. Beat is folded into worker via
+# `--beat` to keep the service count down (acceptable for a portfolio demo;
+# for production split it back out as in the docker-compose).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "python manage.py migrate --noinput && python manage.py loaddata seeds/sources.json seeds/instruments.json && python manage.py apply_post_migrate && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker --access-logfile - --error-logfile -"
+healthcheckPath = "/health/ready/"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[deploy.environmentVariables]]
+name = "DJANGO_SETTINGS_MODULE"
+value = "config.settings.prod"
+
+[[deploy.environmentVariables]]
+name = "DJANGO_ALLOWED_HOSTS"
+value = "*.railway.app,*.up.railway.app"
+
+[[deploy.environmentVariables]]
+name = "EXPOSE_ADMIN"
+value = "false"
+
+[[deploy.environmentVariables]]
+name = "EXPOSE_METRICS"
+value = "false"
