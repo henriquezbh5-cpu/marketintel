@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY --from=base /usr/local/lib/python${PYTHON_VERSION}/site-packages /usr/local/lib/python${PYTHON_VERSION}/site-packages
+COPY --from=base /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=base /usr/local/bin /usr/local/bin
 
 COPY --chown=app:app . .

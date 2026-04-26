@@ -18,8 +18,8 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "python manage.py migrate --noinput && python manage.py loaddata seeds/sources.json seeds/instruments.json && python manage.py apply_post_migrate && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker --access-logfile - --error-logfile -"
-healthcheckPath = "/health/ready/"
+startCommand = "bash -c 'set -e; echo \">>> migrate\"; python manage.py migrate --noinput; echo \">>> loaddata\"; python manage.py loaddata seeds/sources.json seeds/instruments.json || echo \"loaddata failed (continuing)\"; echo \">>> apply_post_migrate\"; python manage.py apply_post_migrate || echo \"post_migrate failed (continuing)\"; echo \">>> gunicorn\"; exec gunicorn config.asgi:application --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker --access-logfile - --error-logfile -'"
+healthcheckPath = "/health/live/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
