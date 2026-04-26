@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MarketIntel — Implementation Manual</title>
+<style>
+  /* ─── Page setup ─────────────────────────────────────────── */
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8pt;
+      color: #888;
+    }
+    @bottom-left {
+      content: "MarketIntel · Implementation Manual";
+      font-family: 'Inter', sans-serif;
+      font-size: 8pt;
+      color: #888;
+    }
+  }
+  @page :first {
+    margin: 0;
+    @bottom-right { content: ""; }
+    @bottom-left { content: ""; }
+  }
+
+  /* ─── Reset + base ───────────────────────────────────────── */
+  * { box-sizing: border-box; }
+  html { font-size: 11pt; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    color: #14171f;
+    line-height: 1.55;
+    margin: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1, h2, h3, h4 { color: #0b0d14; line-height: 1.2; margin-top: 0; }
+  h1 { font-size: 28pt; font-weight: 800; letter-spacing: -.02em; margin-bottom: 6mm; }
+  h2 { font-size: 18pt; font-weight: 700; letter-spacing: -.01em; margin: 12mm 0 4mm; padding-top: 4mm; border-top: 2px solid #e5e7eb; }
+  h3 { font-size: 13pt; font-weight: 700; margin: 8mm 0 3mm; color: #4338ca; }
+  h4 { font-size: 11pt; font-weight: 600; margin: 5mm 0 2mm; color: #0b0d14; }
+  p  { margin: 0 0 3mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin-bottom: 1.5mm; }
+  code, pre, .mono { font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace; }
+  code { background: #f1f3f8; padding: 0.3mm 1.2mm; border-radius: 1mm; font-size: 9.5pt; color: #1e293b; }
+  pre {
+    background: #0b0d14;
+    color: #e6e8ee;
+    padding: 4mm;
+    border-radius: 2mm;
+    overflow-x: auto;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    margin: 3mm 0;
+    page-break-inside: avoid;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; font-size: 9.5pt; page-break-inside: avoid; }
+  th, td { padding: 2mm 3mm; text-align: left; vertical-align: top; border-bottom: 1px solid #e5e7eb; }
+  th { background: #f8fafc; font-weight: 600; color: #475569; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; }
+  blockquote { border-left: 3px solid #6366f1; padding: 2mm 0 2mm 4mm; color: #475569; margin: 3mm 0; font-style: italic; }
+
+  /* ─── Cover ──────────────────────────────────────────────── */
+  .cover {
+    height: 297mm;
+    padding: 40mm 26mm;
+    background: linear-gradient(135deg, #0b0d14 0%, #1e1b4b 60%, #172554 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before, .cover::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: .35;
+  }
+  .cover::before { top: -8mm; right: -8mm; width: 100mm; height: 100mm; background: #6366f1; }
+  .cover::after  { bottom: -10mm; left: -10mm; width: 120mm; height: 120mm; background: #34e5b5; }
+  .cover .head { font-family: 'JetBrains Mono', monospace; font-size: 9pt; letter-spacing: .3em; opacity: .55; }
+  .cover h1 { color: white; font-size: 44pt; font-weight: 800; line-height: 1.05; margin: 0 0 6mm; max-width: 130mm; }
+  .cover .sub { font-size: 14pt; opacity: .8; max-width: 130mm; line-height: 1.4; }
+  .cover .meta { display: flex; gap: 12mm; font-family: 'JetBrains Mono', monospace; font-size: 9pt; }
+  .cover .meta strong { display: block; opacity: .55; font-weight: 400; margin-bottom: 1mm; letter-spacing: .15em; font-size: 7.5pt; text-transform: uppercase; }
+  .cover .meta span { font-size: 11pt; }
+  .cover .badge {
+    display: inline-block;
+    padding: 1.5mm 4mm;
+    border-radius: 999px;
+    background: rgba(52, 229, 181, .15);
+    border: 1px solid rgba(52, 229, 181, .35);
+    color: #5eead4;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5pt;
+    margin-bottom: 6mm;
+  }
+
+  /* ─── Status pill ────────────────────────────────────────── */
+  .pill {
+    display: inline-block;
+    padding: 0.7mm 2.5mm;
+    border-radius: 999px;
+    font-size: 8pt;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    vertical-align: middle;
+  }
+  .pill-ok    { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+  .pill-amber { background: #fef3c7; color: #78350f; border: 1px solid #fcd34d; }
+  .pill-info  { background: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; }
+
+  /* ─── Section dividers ───────────────────────────────────── */
+  .req {
+    page-break-before: always;
+    border: 1px solid #e5e7eb;
+    border-radius: 3mm;
+    padding: 6mm;
+    margin-bottom: 6mm;
+    background: #fff;
+  }
+  .req-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 4mm;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 4mm;
+    margin-bottom: 4mm;
+  }
+  .req-num {
+    flex: 0 0 12mm;
+    height: 12mm;
+    border-radius: 3mm;
+    background: linear-gradient(135deg, #6366f1, #34e5b5);
+    color: white;
+    font-weight: 800;
+    font-size: 18pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .req-num.amber { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+  .req-meta { font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: #94a3b8; text-transform: uppercase; letter-spacing: .1em; }
+  .req-quote {
+    background: #f8fafc;
+    border-left: 3px solid #6366f1;
+    padding: 3mm 4mm;
+    margin: 0 0 4mm;
+    font-style: italic;
+    color: #334155;
+    font-size: 10.5pt;
+  }
+  .req-quote.amber { border-left-color: #f59e0b; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+
+  /* ─── Diagrams ASCII ─────────────────────────────────────── */
+  pre.diagram {
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #e5e7eb;
+    font-size: 7.5pt;
+    line-height: 1.35;
+  }
+
+  /* ─── TOC ────────────────────────────────────────────────── */
+  .toc { margin: 6mm 0; }
+  .toc ol { list-style: none; padding: 0; counter-reset: toc; }
+  .toc li {
+    counter-increment: toc;
+    padding: 2.2mm 0;
+    border-bottom: 1px dotted #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 10.5pt;
+  }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'JetBrains Mono', monospace;
+    color: #94a3b8;
+    margin-right: 4mm;
+    font-size: 8.5pt;
+  }
+  .toc li b { flex: 1; font-weight: 500; color: #1e293b; }
+  .toc li i { font-style: normal; font-family: 'JetBrains Mono', monospace; font-size: 8.5pt; color: #94a3b8; }
+
+  /* ─── Misc helpers ───────────────────────────────────────── */
+  .small { font-size: 9pt; color: #64748b; }
+  .files { font-family: 'JetBrains Mono', monospace; font-size: 8.5pt; color: #475569; background: #f8fafc; padding: 3mm; border-radius: 2mm; }
+  .keep { page-break-inside: avoid; }
+  .pb   { page-break-before: always; }
+  .lead { font-size: 12pt; color: #475569; margin-bottom: 6mm; }
+
+  hr.rule { border: none; border-top: 1px solid #e5e7eb; margin: 6mm 0; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ COVER ════════════════════ -->
+<section class="cover">
+  <div>
+    <div class="head">SENIOR DATA / BACKEND ENGINEER · PORTFOLIO</div>
+  </div>
+  <div>
+    <span class="badge">7 / 7 requirements covered · Live demo + source code public</span>
+    <h1>MarketIntel<br/>Implementation Manual</h1>
+    <p class="sub">A working market-intelligence platform built end-to-end against a Senior Data / Backend Engineer role specification — from third-party ingestion to a partitioned dimensional warehouse to an interactive dashboard.</p>
+  </div>
+  <div class="meta">
+    <div>
+      <strong>Author</strong>
+      <span>Humberto Henriquez</span>
+    </div>
+    <div>
+      <strong>Repo</strong>
+      <span>github.com/henriquezbh5-cpu/marketintel</span>
+    </div>
+    <div>
+      <strong>Version</strong>
+      <span>v1.0 · 2026-04-25</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ EXECUTIVE SUMMARY ════════════════════ -->
+<h1>Executive summary</h1>
+<p class="lead">MarketIntel is a production-shaped demo built specifically against the seven role requirements. It is not a toy: real ingestion runs every minute against Yahoo Finance, data lands in partitioned PostgreSQL, the dashboard polls live, and 27 tests gate every change.</p>
+
+<h3>How the role spec maps</h3>
+<table>
+  <thead>
+    <tr>
+      <th style="width: 6mm">#</th>
+      <th>Requirement</th>
+      <th style="width: 26mm">Status</th>
+      <th style="width: 50mm">Where it lives</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>Scalable Python/Django backend</td><td><span class="pill pill-ok">Delivered</span></td><td>apps/api, apps/dashboard, apps/core</td></tr>
+    <tr><td>2</td><td>Third-party ingestion pipelines</td><td><span class="pill pill-ok">Delivered</span></td><td>pipelines/connectors, pipelines/tasks</td></tr>
+    <tr><td>3</td><td>Data modelling and schema design</td><td><span class="pill pill-ok">Delivered</span></td><td>apps/instruments, apps/prices, apps/news</td></tr>
+    <tr><td>4</td><td>Async / distributed processing</td><td><span class="pill pill-ok">Delivered</span></td><td>config/celery.py, pipelines/tasks/common.py</td></tr>
+    <tr><td>5</td><td>Infra orchestration / storage / warehousing</td><td><span class="pill pill-ok">Delivered</span></td><td>pipelines/orchestration, warehouse, infra/k8s</td></tr>
+    <tr><td>6</td><td>Cross-functional collaboration</td><td><span class="pill pill-amber">Solo demo · structured for team-fit</span></td><td>docs/CONTRIBUTING, docs/RUNBOOK, .github/</td></tr>
+    <tr><td>7</td><td>Strategic decisions with the CTO</td><td><span class="pill pill-amber">Captured in 7 ADRs</span></td><td>docs/adr/0001..0007.md</td></tr>
+  </tbody>
+</table>
+
+<h3>Headline numbers</h3>
+<table>
+  <tbody>
+    <tr><td><strong>Code surface</strong></td><td>~150 source files across apps, pipelines, infra and tests</td></tr>
+    <tr><td><strong>Tests</strong></td><td>27 / 27 passing · 74% line coverage on apps + pipelines</td></tr>
+    <tr><td><strong>Architecture decisions</strong></td><td>7 ADRs documenting trade-offs (Django, Celery, Dagster, partitioning, DuckDB, etc.)</td></tr>
+    <tr><td><strong>Live data</strong></td><td>18 instruments · 21,000+ OHLCV bars across 5 resolutions</td></tr>
+    <tr><td><strong>Refresh cadence</strong></td><td>Spot quotes every 60s · Gold matviews every 5 min</td></tr>
+    <tr><td><strong>Containers</strong></td><td>7 (postgres · redis · minio · web · worker · beat · dagster)</td></tr>
+  </tbody>
+</table>
+
+<!-- ════════════════════ TOC ════════════════════ -->
+<h2 class="pb">Table of contents</h2>
+<div class="toc">
+  <ol>
+    <li><b>Architecture at a glance</b> <i>page 4</i></li>
+    <li><b>Requirement 1 — Scalable Python/Django backend</b> <i>page 6</i></li>
+    <li><b>Requirement 2 — Third-party ingestion pipelines</b> <i>page 8</i></li>
+    <li><b>Requirement 3 — Data modelling and schema design</b> <i>page 10</i></li>
+    <li><b>Requirement 4 — Async / distributed processing</b> <i>page 12</i></li>
+    <li><b>Requirement 5 — Infrastructure: orchestration, storage, warehousing</b> <i>page 14</i></li>
+    <li><b>Requirement 6 — Cross-functional collaboration</b> <i>page 16</i></li>
+    <li><b>Requirement 7 — Architecture strategy with the CTO</b> <i>page 17</i></li>
+    <li><b>Operations manual — running, testing, deploying</b> <i>page 18</i></li>
+    <li><b>Live demo URLs and what each page shows</b> <i>page 21</i></li>
+    <li><b>Source-code map</b> <i>page 22</i></li>
+  </ol>
+</div>
+
+<!-- ════════════════════ ARCHITECTURE ════════════════════ -->
+<h1 class="pb">1 · Architecture at a glance</h1>
+<p class="lead">A single sentence: third-party API responses flow through Bronze (immutable raw on MinIO) into Silver (normalised, partitioned PostgreSQL), and Gold (refreshed materialised views and DuckDB analytics) — orchestrated by Dagster and powered by a Celery worker pool, served by Django through both a REST API and an interactive dashboard.</p>
+
+<h3>The seven physical containers</h3>
+<pre class="diagram">
+   ┌───────────┐    publishes   ┌───────────┐
+   │   beat    │ ──────────────>│   redis   │  broker · cache · result backend
+   │ scheduler │                └─────┬─────┘
+   └───────────┘                      │ pulls
+                                      v
+                                ┌───────────┐    HTTP    ┌──────────────────┐
+                                │  worker   │ ─────────> │  Yahoo Finance   │
+                                │  Celery   │ <───────── │  (third party)   │
+                                └─────┬─────┘            └──────────────────┘
+                                      │ UPSERT
+                                      v
+   ┌──────────┐                 ┌───────────┐                 ┌───────────┐
+   │  minio   │ <─── bronze ──┤ │ postgres  │ ── ORM SELECT ─>│    web    │
+   │  bronze  │   JSONL.gz      │  silver   │                 │  Django   │
+   └──────────┘                 └─────┬─────┘                 │   + DRF   │
+                                      │                       │+dashboard │
+                                refresh│ matviews             └─────┬─────┘
+                                      v                             │ HTTP
+                                ┌───────────┐                       v
+                                │   gold    │                ┌────────────┐
+                                │ matviews  │                │  Browser   │
+                                │  + DuckDB │                │ (recruiter │
+                                └───────────┘                │  / CTO)    │
+                                                             └────────────┘
+   ┌───────────┐
+   │  dagster  │ ── orchestrates the asset graph (separate UI)
+   └───────────┘
+</pre>
+
+<h3>The Medallion data layout</h3>
+<table>
+  <thead>
+    <tr><th>Layer</th><th>Storage</th><th>Mutability</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Bronze</strong></td><td>MinIO/S3 — JSONL.gz</td><td>Append-only, immutable</td><td>Replay deterministic. Audit. Bug-debug transformations</td></tr>
+    <tr><td><strong>Silver</strong></td><td>PostgreSQL 16 — partitioned</td><td>Idempotent UPSERT</td><td>Serves the API and the dashboard. Joins, indexes, FKs</td></tr>
+    <tr><td><strong>Gold</strong></td><td>Postgres matviews + DuckDB</td><td>Refreshed on schedule</td><td>Hot dashboard queries · heavy analytics isolated from OLTP</td></tr>
+  </tbody>
+</table>
+
+<h3>What runs every minute</h3>
+<ol>
+  <li><strong>Beat</strong> publishes a message to Redis on the <code>ingest</code> queue.</li>
+  <li>An idle <strong>Celery worker</strong> picks the message up and instantiates the Yahoo Finance connector.</li>
+  <li>The <strong>connector</strong> applies a token-bucket rate limit, checks the circuit breaker, then issues an HTTP GET via <code>httpx</code>.</li>
+  <li>Yahoo responds with JSON; the connector parses it into a typed dataclass.</li>
+  <li>The worker persists the data with <code>INSERT ... ON CONFLICT DO UPDATE</code> on the natural key, making the operation idempotent.</li>
+  <li>Within 5 seconds, the dashboard's polling cycle fetches the new data via a Django view that reads ORM directly — no internal HTTP roundtrip.</li>
+  <li>The chart and sparklines re-render. The user sees the price update.</li>
+</ol>
+<p>End-to-end latency from upstream change to user screen: <strong>~10 seconds at worst</strong>.</p>
+
+<!-- ════════════════════ REQ 1 ════════════════════ -->
+<div class="req pb">
+  <div class="req-head">
+    <div class="req-num">1</div>
+    <div>
+      <div class="req-meta">Backend · Application Layer</div>
+      <h2 style="margin: 1mm 0 2mm; padding: 0; border: none;">Scalable Python/Django backend</h2>
+      <span class="pill pill-ok">Delivered</span>
+    </div>
+  </div>
+
+  <div class="req-quote">"Design, build, optimise and maintain scalable features and systems in our Python/Django backend."</div>
+
+  <h3>What was built</h3>
+  <p>A Django 5 application split into six apps (<code>core</code>, <code>instruments</code>, <code>prices</code>, <code>news</code>, <code>api</code>, <code>dashboard</code>) plus the <code>pipelines</code> Django app that owns Celery tasks. Settings are environment-split (<code>base · dev · prod · test</code>) so the same image runs locally, in CI and in production with only environment variables changing.</p>
+
+  <h3>Key design choices</h3>
+  <ul>
+    <li><strong>API key authentication</strong> with hashed-at-rest keys (<code>sha256</code>). Keys are minted via <code>scripts/issue_api_key.py</code>, shown to the user once, and never persisted in plain text. Scopes are <code>read</code> / <code>write</code> / <code>admin</code>.</li>
+    <li><strong>Per-key throttling</strong>: the custom <code>APIKeyScopedThrottle</code> derives the cache bucket from the API key's primary key, not the user's, so a single user with multiple keys gets independent rate budgets — useful when the same user shares one key across services.</li>
+    <li><strong>Pagination split by use case</strong>: cursor pagination (keyset on <code>ts</code>) for time-series endpoints — O(log N) regardless of depth — and limit/offset for catalogues (small enumerable lists).</li>
+    <li><strong>Health probes</strong> shaped for Kubernetes: <code>/health/live/</code> never touches dependencies (just confirms the process is up), while <code>/health/ready/</code> validates Postgres + Redis. The kubelet uses these to manage rollouts and restarts.</li>
+    <li><strong>Hardening flags</strong>: <code>EXPOSE_ADMIN</code> and <code>EXPOSE_METRICS</code> environment variables gate the <code>/admin</code> and <code>/metrics</code> routes so the same image can be exposed publicly via tunnel or deployed to staging without leaking sensitive endpoints.</li>
+    <li><strong>Structured logging</strong>: a custom <code>JSONFormatter</code> emits one JSON line per record. The <code>RequestIDMiddleware</code> threads <code>X-Request-ID</code> from the load balancer through the whole stack via <code>ContextVar</code>, so every log line in a request — Django, ORM, Celery if dispatched — shares the same correlation id.</li>
+  </ul>
+
+  <h3>Where you see it</h3>
+  <ul>
+    <li>Live API documentation: <code>/api/docs/</code> renders the OpenAPI 3.1 schema as Swagger UI</li>
+    <li>Health probes: <code>/health/live/</code> and <code>/health/ready/</code> return JSON status</li>
+    <li>The dashboard at <code>/</code> is itself a Django app — server-rendered templates with Alpine.js + Chart.js for live updates</li>
+  </ul>
+
+  <div class="files">apps/api/ · apps/core/health.py · apps/core/middleware.py · apps/core/logging.py · config/settings/{base,dev,prod,test}.py</div>
+</div>
+
+<!-- ════════════════════ REQ 2 ════════════════════ -->
+<div class="req">
+  <div class="req-head">
+    <div class="req-num">2</div>
+    <div>
+      <div class="req-meta">Ingestion · Third-party data</div>
+      <h2 style="margin: 1mm 0 2mm; padding: 0; border: none;">Third-party ingestion pipelines</h2>
+      <span class="pill pill-ok">Delivered</span>
+    </div>
+  </div>
+
+  <div class="req-quote">"Design and build robust data ingestion pipelines to incorporate, normalise and continuously refresh the third-party data sources that power our platform."</div>
+
+  <h3>What was built</h3>
+  <p>A connector framework with a shared base (<code>BaseConnector</code>) and four concrete adapters. The currently active source is <strong>Yahoo Finance</strong> for equity quotes and OHLCV; three additional adapters (Binance, CoinGecko, CryptoPanic) are committed and ready to activate.</p>
+
+  <h3>The base layer (where the robustness lives)</h3>
+  <ul>
+    <li><strong>Token-bucket rate limiting</strong> per connector instance. Configurable via env (<code>YAHOO_RATE_LIMIT_PER_MIN</code>, <code>BINANCE_RATE_LIMIT_PER_MIN</code>, etc.). When the bucket is empty, the connector raises <code>RateLimited</code> with a <code>retry_after</code> hint so the task can re-enqueue with backoff rather than busy-waiting.</li>
+    <li><strong>Circuit breaker</strong> (closed / open / half-open). After 5 consecutive failures the breaker opens for 30 seconds; calls fail fast with <code>CircuitOpen</code>. After the cooldown a single probe is allowed; success closes the breaker, another failure opens it again. Prevents storming a degraded upstream.</li>
+    <li><strong>Typed errors</strong>: <code>RateLimited</code>, <code>CircuitOpen</code>, <code>ConnectorError</code>. Tasks declare these in <code>autoretry_for</code> so transient failures retry automatically while structural errors fail immediately.</li>
+    <li><strong>Prometheus metrics</strong> per request (counter by <code>source × status</code>, latency histogram, breaker-open counter) wired through the base — adapters get observability for free.</li>
+  </ul>
+
+  <h3>What the Yahoo adapter does specifically</h3>
+  <ul>
+    <li>Calls the public chart endpoint <code>query1.finance.yahoo.com/v8/finance/chart/&lt;symbol&gt;</code> — no API key, no SDK dependency.</li>
+    <li>Sends a browser-flavoured <code>User-Agent</code> so the anonymous JSON keeps flowing.</li>
+    <li>Parses the <code>meta</code> block into a <code>YFQuote</code> dataclass and the timestamp/quote arrays into <code>YFCandle</code> records.</li>
+    <li>Skips bars where any OHLCV value is null (Yahoo emits null for trading-halt minutes — silver should not see those).</li>
+  </ul>
+
+  <h3>How "continuously refreshed" is guaranteed</h3>
+  <ul>
+    <li><strong>Beat schedule</strong> fires <code>ingest_yahoo_spot_for_active</code> every minute on the <code>ingest</code> queue.</li>
+    <li><strong>Idempotent UPSERTs</strong>: <code>INSERT INTO fact_price_spot ... ON CONFLICT (instrument_id) DO UPDATE</code>. Re-running over the same window updates in place — no duplicates, no races.</li>
+    <li><strong>Live evidence</strong>: the dashboard's <code>/system/</code> page reports last-seen timestamp per source and labels it <code>LIVE</code> if the last event was within 10 minutes, <code>STALE</code> otherwise.</li>
+  </ul>
+
+  <div class="files">pipelines/connectors/{base,yahoo_finance,binance,coingecko,cryptopanic}.py · pipelines/tasks/yahoo.py</div>
+</div>
+
+<!-- ════════════════════ REQ 3 ════════════════════ -->
+<div class="req">
+  <div class="req-head">
+    <div class="req-num">3</div>
+    <div>
+      <div class="req-meta">Schema · Data modelling</div>
+      <h2 style="margin: 1mm 0 2mm; padding: 0; border: none;">Data modelling and schema design</h2>
+      <span class="pill pill-ok">Delivered</span>
+    </div>
+  </div>
+
+  <div class="req-quote">"Own data modelling and schema design across our platform, making sure the data layer is structured to deliver performance, flexibility and long-term scalability."</div>
+
+  <h3>The dimensional model</h3>
+  <p>Star schema with two dimensions and three facts:</p>
+  <pre class="diagram">
+    dim_source (small, mostly static)
+        │
+        v
+    dim_instrument (SCD Type 2)        — Apple Inc., NVIDIA, S&P 500, etc.
+        │
+   ┌────┼─────────────────┐
+   v    v                 v
+   fact_price_spot   fact_price_candle  fact_news
+   (one row per      (partitioned by    (M2M back to
+    instrument)       month, billions)   instruments)
+  </pre>
+
+  <h3>SCD Type 2 on the instrument dimension</h3>
+  <p>Tickers change. Companies rebrand. Securities delist. The <code>Instrument</code> table tracks every version with <code>valid_from</code>, <code>valid_to</code> and <code>is_current</code>. The active row is enforced via a <strong>partial unique index</strong>:</p>
+  <pre>UniqueConstraint(
+    fields=["source", "external_id"],
+    condition=Q(is_current=True),
+    name="uniq_current_instrument_per_source",
+)</pre>
+  <p>This is a Postgres-native feature that Django supports first-class — no triggers, no manual enforcement. The service layer (<code>upsert_instrument_scd2</code>) compares tracked attributes (symbol, name, asset_class, quote_currency) and either no-ops, updates metadata in place, or closes the previous row and opens a new current version.</p>
+
+  <h3>Time-series fact partitioning</h3>
+  <p><code>fact_price_candle</code> is a Postgres <code>PARTITION BY RANGE (ts)</code> table with monthly partitions. Currently 10 active partitions covering Oct 2025 → Jul 2026; future partitions are auto-created by a Celery maintenance task on the 25th of every month.</p>
+
+  <p>The PK includes the partition key, as Postgres requires:</p>
+  <pre>PRIMARY KEY (instrument_id, source_id, resolution, ts)</pre>
+
+  <p>Index strategy per partition:</p>
+  <ul>
+    <li><strong>BRIN on <code>ts</code></strong> — Block Range Index, ~100× cheaper than B-tree for append-only time-series, ideal because rows arrive in monotonic <code>ts</code> order.</li>
+    <li><strong>Composite B-tree on <code>(instrument_id, ts DESC)</code></strong> — the dominant query pattern is "give me the last N candles for symbol X". This index makes that O(log N) per partition with an index-only scan possible.</li>
+    <li><strong>Resolution + ts</strong> — for resolution-scoped dashboards.</li>
+  </ul>
+
+  <h3>Why declarative partitioning over Citus / TimescaleDB</h3>
+  <p>Documented in <strong>ADR 0005</strong>. Stock Postgres meets the requirements at our scale (multi-billion rows projected); adding TimescaleDB adds extension dependency and license footnotes; Citus solves a distributed problem we don't have. The partitioning + BRIN combination is good for ~10 TB on a single node, plenty of runway.</p>
+
+  <h3>Gold materialised views</h3>
+  <p>Three matviews refreshed concurrently every 5 minutes by Celery. Each has a unique index (required for <code>REFRESH MATERIALIZED VIEW CONCURRENTLY</code>):</p>
+  <ul>
+    <li><code>gold.mv_top_movers_24h</code> — top gainers / losers, sorted by change %</li>
+    <li><code>gold.mv_volume_leaders_24h</code> — highest 24h notional volume</li>
+    <li><code>gold.mv_news_sentiment_daily</code> — aggregate sentiment per symbol per day</li>
+  </ul>
+  <p>These power dashboard queries that would otherwise scan the partitioned fact every refresh.</p>
+
+  <div class="files">apps/instruments/models.py · apps/prices/models.py · apps/news/models.py · apps/prices/migrations/0002_partition_candles.py · infra/postgres/post_migrate/01_gold_marts.sql · docs/data-model.md · docs/adr/0005-postgres-partitioning.md</div>
+</div>
+
+<!-- ════════════════════ REQ 4 ════════════════════ -->
+<div class="req">
+  <div class="req-head">
+    <div class="req-num">4</div>
+    <div>
+      <div class="req-meta">Async · Distributed</div>
+      <h2 style="margin: 1mm 0 2mm; padding: 0; border: none;">Async / distributed processing</h2>
+      <span class="pill pill-ok">Delivered</span>
+    </div>
+  </div>
+
+  <div class="req-quote">"Implement async and distributed processing to manage large-scale operations reliably and efficiently."</div>
+
+  <h3>Celery + Redis topology</h3>
+  <p>Celery 5 with Redis as broker and result backend. Four named queues route work by domain:</p>
+  <table>
+    <thead><tr><th>Queue</th><th>Carries</th><th>Worker behaviour</th></tr></thead>
+    <tbody>
+      <tr><td><code>default</code></td><td>Maintenance, generic work</td><td>Standard prefork pool</td></tr>
+      <tr><td><code>ingest</code></td><td>All third-party API calls</td><td>Throttled by connector token buckets</td></tr>
+      <tr><td><code>transform</code></td><td>Gold matview refreshes, normalisation</td><td>Single-flight per matview</td></tr>
+      <tr><td><code>dlq</code></td><td>Manually requeued failures</td><td>Operator-driven, not Beat-driven</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Reliability guarantees on every task</h3>
+  <p>The <code>IdempotentTask</code> base class (<code>pipelines/tasks/common.py</code>) sets sensible defaults that all pipeline tasks inherit:</p>
+  <ul>
+    <li><strong>Acks late</strong>: a task is only acked after it succeeds. If a worker dies mid-task, Redis re-delivers the message to another worker.</li>
+    <li><strong>Reject on worker lost</strong>: same idea, surfaces sigkill scenarios.</li>
+    <li><strong>Prefetch = 1</strong>: workers don't hoard; tasks are distributed evenly across the pool.</li>
+    <li><strong>Retries with exponential backoff and jitter</strong>: <code>retry_backoff=True</code>, <code>retry_jitter=True</code>, <code>max_retries=5</code>, capped at 10 minutes.</li>
+    <li><strong>Auto-retry on transient errors</strong>: <code>HTTPError</code>, <code>ConnectorError</code>, <code>RateLimited</code>. 4xx errors don't retry.</li>
+    <li><strong>Soft + hard time limits</strong>: <code>soft_time_limit</code> raises <code>SoftTimeLimitExceeded</code> in-task so cleanup runs; <code>time_limit</code> hard-kills at 30s past that.</li>
+  </ul>
+
+  <h3>Dead-letter queue (the bit most demos skip)</h3>
+  <p>When a task exhausts its retries, the <code>on_failure</code> hook persists everything to the <code>core_dead_letter_task</code> Postgres table:</p>
+  <pre>DeadLetterTask.objects.update_or_create(
+    task_id=task_id,
+    defaults={
+        "task_name": self.name,
+        "queue": (self.request.delivery_info or {}).get("routing_key", ""),
+        "args": list(args or []),
+        "kwargs": dict(kwargs or {}),
+        "exception": repr(exc)[:8192],
+        "traceback": str(einfo)[:16384] if einfo else "",
+        "attempts": self.request.retries + 1,
+    },
+)</pre>
+  <p>The Django admin has a custom action — <em>"Requeue tasks (idempotent)"</em> — that re-publishes the failed messages to their original queue. Because every task is idempotent, requeue is always safe.</p>
+
+  <h3>Beat schedules driving the platform</h3>
+  <table>
+    <thead><tr><th>Cadence</th><th>Task</th><th>Queue</th></tr></thead>
+    <tbody>
+      <tr><td>Every minute</td><td><code>ingest_yahoo_spot_for_active</code></td><td>ingest</td></tr>
+      <tr><td>Every 5 minutes</td><td><code>refresh_gold_marts</code></td><td>transform</td></tr>
+      <tr><td>Every 5 minutes</td><td><code>ingest_news_recent</code></td><td>ingest</td></tr>
+      <tr><td>25th of month</td><td><code>ensure_future_partitions</code></td><td>default</td></tr>
+    </tbody>
+  </table>
+
+  <div class="files">config/celery.py · pipelines/tasks/common.py · pipelines/tasks/yahoo.py · apps/core/models.py (DeadLetterTask) · apps/core/admin.py</div>
+</div>
+
+<!-- ════════════════════ REQ 5 ════════════════════ -->
+<div class="req">
+  <div class="req-head">
+    <div class="req-num">5</div>
+    <div>
+      <div class="req-meta">Infrastructure · Orchestration · Storage</div>
+      <h2 style="margin: 1mm 0 2mm; padding: 0; border: none;">Infrastructure: orchestration, storage, warehousing</h2>
+      <span class="pill pill-ok">Delivered</span>
+    </div>
+  </div>
+
+  <div class="req-quote">"Own the data infrastructure tooling, including pipeline orchestration, storage and warehousing, together with development of the application layer."</div>
+
+  <h3>Why Dagster + Celery (not just one)</h3>
+  <p>These tools serve different purposes and complement each other.</p>
+  <table>
+    <thead><tr><th></th><th>Dagster</th><th>Celery</th></tr></thead>
+    <tbody>
+      <tr><td>Mental model</td><td>Asset graph, declarative</td><td>Task queue, imperative</td></tr>
+      <tr><td>Granularity</td><td>Pipeline / dataset</td><td>Function / unit of work</td></tr>
+      <tr><td>Schedules &amp; sensors</td><td>First-class</td><td>Beat (limited)</td></tr>
+      <tr><td>Lineage / metadata</td><td>First-class</td><td>None</td></tr>
+      <tr><td>Massive parallelism</td><td>Limited</td><td>Unlimited (horizontal workers)</td></tr>
+    </tbody>
+  </table>
+  <p>Dagster owns the <em>asset DAG</em>: <code>bronze_yahoo_spot</code> → <code>silver_price_spot</code>. Heavy fan-out delegates to Celery via <code>group()</code>. Dagster waits on the result and publishes the asset materialisation. ADR 0003 documents the trade-off.</p>
+
+  <h3>Storage tiers</h3>
+  <table>
+    <thead><tr><th>Tier</th><th>Tech</th><th>What lives there</th></tr></thead>
+    <tbody>
+      <tr><td>Object storage (bronze)</td><td>MinIO (S3-compatible) — swappable for AWS S3, Backblaze B2, R2</td><td>Raw third-party JSON, gzip-compressed JSONL, partitioned <code>source/entity/dt/hh</code></td></tr>
+      <tr><td>OLTP / silver</td><td>PostgreSQL 16</td><td>Normalised facts and dimensions; the hot path the API serves from</td></tr>
+      <tr><td>Analytics</td><td>DuckDB embedded in worker processes</td><td>Heavy queries (correlation matrices, factor exposures) read Postgres via the <code>postgres_scanner</code> extension; isolated from OLTP</td></tr>
+      <tr><td>Cache / broker</td><td>Redis</td><td>Celery broker + result backend, throttle counters, short-TTL spot cache</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Application layer</h3>
+  <p>Two surfaces backed by the same models:</p>
+  <ul>
+    <li><strong>REST API</strong> at <code>/api/v1/</code> for programmatic consumers — full OpenAPI 3.1 schema, scoped throttle, cursor pagination for time-series.</li>
+    <li><strong>Interactive dashboard</strong> at <code>/</code> for humans — server-rendered Django templates with Tailwind + Alpine + Chart.js, polling JSON endpoints every 5–15 seconds. The dashboard reads ORM directly (no roundtrip to the API), keeping latency low.</li>
+  </ul>
+
+  <h3>Production deployment</h3>
+  <p>Three deploy paths committed in the repo:</p>
+  <ul>
+    <li><code>render.yaml</code> blueprint — free tier, auto-provisions Postgres + Redis + web + worker.</li>
+    <li><code>railway.toml</code> — Railway platform, with notes for adding plugins and worker service.</li>
+    <li><code>infra/k8s/</code> — Kubernetes manifests with Kustomize base + staging/production overlays. Includes Deployment, Service, HPA (CPU + memory), PodDisruptionBudget, NetworkPolicy (deny-all-default + targeted allows), Ingress with cert-manager, and a one-shot migrations Job.</li>
+  </ul>
+
+  <h3>CI/CD</h3>
+  <ul>
+    <li>GitHub Actions: lint (ruff, mypy advisory) + test (pytest with services for Postgres + Redis) + build (multi-stage Docker, push to GHCR).</li>
+    <li>CodeQL weekly security scans (Python).</li>
+    <li>Dependabot grouped updates (django-stack, celery-stack, dagster-stack, observability).</li>
+  </ul>
+
+  <h3>Observability</h3>
+  <ul>
+    <li>Prometheus metrics: connector latency by source, queue depth, DLQ inserts, freshness gauges.</li>
+    <li>Two pre-built Grafana dashboards (<code>marketintel-overview.json</code>, <code>marketintel-pipelines.json</code>).</li>
+    <li>Prometheus alerts (<code>infra/prometheus/alerts.yml</code>): high error rate, p95 latency breach, freshness stale, DLQ growth.</li>
+    <li>Optional OpenTelemetry tracing wired in <code>config/observability.py</code> (Django + Celery + httpx + psycopg auto-instrumented when <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> is set).</li>
+  </ul>
+
+  <div class="files">pipelines/orchestration/{assets,jobs,sensors}.py · warehouse/db.py · warehouse/queries/*.sql · infra/k8s/ · render.yaml · railway.toml · .github/workflows/ · infra/grafana/ · infra/prometheus/</div>
+</div>
+
+<!-- ════════════════════ REQ 6 ════════════════════ -->
+<div class="req">
+  <div class="req-head">
+    <div class="req-num amber">6</div>
+    <div>
+      <div class="req-meta">Cross-functional collaboration</div>
+      <h2 style="margin: 1mm 0 2mm; padding: 0; border: none;">Working with developers, AI engineers, data scientists</h2>
+      <span class="pill pill-amber">Solo demo · structured for team-fit</span>
+    </div>
+  </div>
+
+  <div class="req-quote amber">"Contribute to new product features and integrations, working closely with other developers, AI engineers and data scientists."</div>
+
+  <h3>Honest framing</h3>
+  <p>This is a one-person demo, so collaboration cannot be <em>shown</em>. What can be shown is that the project is <strong>structured to make collaboration smooth from day one</strong>.</p>
+
+  <h3>For other developers joining the codebase</h3>
+  <ul>
+    <li><strong><code>docs/CONTRIBUTING.md</code></strong> — setup in three commands (<code>make install-dev</code>, <code>make up</code>, <code>make migrate</code>), branching convention, testing matrix, walk-through for "adding a new connector".</li>
+    <li><strong><code>.github/PULL_REQUEST_TEMPLATE.md</code></strong> — every PR must answer <em>what · why · how · test plan · risk · rollback</em>. Filters drive-by changes.</li>
+    <li><strong><code>.github/CODEOWNERS</code></strong> — schema-touching changes (<code>migrations/</code>, <code>infra/postgres/</code>, <code>docs/data-model.md</code>) require explicit review.</li>
+    <li><strong>27 tests + CI gates</strong>: PRs cannot merge red.</li>
+    <li><strong>Pre-commit hooks</strong> (ruff, ruff-format, gitleaks, trailing-whitespace) run on every commit so issues surface locally.</li>
+  </ul>
+
+  <h3>For data scientists</h3>
+  <ul>
+    <li>The <strong>DuckDB layer</strong> (<code>warehouse/</code>) is built specifically so analysts run heavy queries without touching the OLTP path. <code>register_views</code> attaches Postgres via <code>postgres_scanner</code> and exposes filter-pushed-down views.</li>
+    <li><strong>SQL is versioned</strong>: <code>warehouse/queries/correlation_matrix.sql</code> and <code>volume_by_session.sql</code> are checked in and reusable across notebooks. Queries don't disappear into ad-hoc Jupyter cells.</li>
+    <li>The <code>notebooks/README.md</code> documents how to spin up Jupyter against the live stack and the suggested layout (<code>01_correlation_analysis</code>, <code>02_volume_by_session</code>, <code>03_news_sentiment_alpha</code>, <code>04_anomaly_detection</code>).</li>
+  </ul>
+
+  <h3>For AI engineers</h3>
+  <ul>
+    <li>The <strong>news pipeline</strong> already includes a <code>SearchVector</code> column (Postgres full-text), a <code>sentiment</code> field, and a <code>sentiment_score</code> float. Adding semantic search (pgvector embeddings) is a column-add, not a model change.</li>
+    <li>Connector contracts return <strong>typed dataclasses</strong> — easy to slot a model-based normaliser between fetch and persist.</li>
+    <li><strong>OpenTelemetry hooks</strong> are wired so any downstream LLM call (e.g. classification, summarisation) inherits trace context.</li>
+  </ul>
+
+  <h3>For operators (on-call)</h3>
+  <ul>
+    <li><strong><code>docs/RUNBOOK.md</code></strong> — alert-by-alert playbook (<code>APIHighErrorRate</code>, <code>PipelineFreshnessStale</code>, <code>DLQGrowing</code>) with immediate actions, common ops (pause schedule, backfill, refresh matview, rotate API key), and recovery procedures.</li>
+    <li><strong><code>scripts/dlq_inspect.py</code></strong> — list / requeue / purge dead-lettered tasks from the CLI without touching the admin.</li>
+  </ul>
+
+  <div class="files">docs/CONTRIBUTING.md · docs/RUNBOOK.md · .github/CODEOWNERS · .github/PULL_REQUEST_TEMPLATE.md · warehouse/queries/ · scripts/</div>
+</div>
+
+<!-- ════════════════════ REQ 7 ════════════════════ -->
+<div class="req">
+  <div class="req-head">
+    <div class="req-num amber">7</div>
+    <div>
+      <div class="req-meta">Strategy · Architecture</div>
+      <h2 style="margin: 1mm 0 2mm; padding: 0; border: none;">Architecture strategy with the CTO</h2>
+      <span class="pill pill-amber">Captured in 7 ADRs</span>
+    </div>
+  </div>
+
+  <div class="req-quote amber">"Collaborate directly with the CTO to define data strategy and technical architecture as the platform scales."</div>
+
+  <h3>Honest framing</h3>
+  <p>There is no real CTO involved here, but every consequential decision is captured in a written <strong>Architecture Decision Record</strong> — exactly what a CTO review session produces. ADRs make the strategy auditable, comparable across alternatives, and explicit about trade-offs.</p>
+
+  <h3>What every ADR contains</h3>
+  <ol>
+    <li><strong>Context</strong> — why a decision is needed now</li>
+    <li><strong>Decision</strong> — what was chosen, briefly</li>
+    <li><strong>Rationale</strong> — why this and not the alternatives</li>
+    <li><strong>Trade-offs</strong> — what was given up; honest about limitations</li>
+    <li><strong>Alternatives considered</strong> — and why each was ruled out</li>
+  </ol>
+
+  <h3>The seven decisions on file</h3>
+  <table>
+    <thead><tr><th style="width: 16mm">ADR</th><th>Topic</th><th>Decision</th></tr></thead>
+    <tbody>
+      <tr><td>0001</td><td>Backend framework</td><td>Django over FastAPI standalone; accept sync-ORM trade-off, mitigate with Celery</td></tr>
+      <tr><td>0002</td><td>Task queue</td><td>Celery over RQ / arq for routing + retry semantics</td></tr>
+      <tr><td>0003</td><td>Orchestration</td><td>Dagster over Airflow / Prefect for asset model and lineage</td></tr>
+      <tr><td>0004</td><td>Data layout</td><td>Medallion bronze / silver / gold with bronze immutability for replays</td></tr>
+      <tr><td>0005</td><td>Time-series partitioning</td><td>Postgres declarative partitioning over TimescaleDB / Citus — no extension dependency, sufficient for projected scale</td></tr>
+      <tr><td>0006</td><td>Analytics layer</td><td>DuckDB embedded over a separate warehouse — isolation from OLTP without a CDC pipeline</td></tr>
+      <tr><td>0007</td><td>Logging</td><td>Structured JSON via custom formatter + ContextVar request-id propagation; OpenTelemetry traces complementary</td></tr>
+    </tbody>
+  </table>
+
+  <p>Each ADR ends with a <em>"What's missing for production"</em> note where applicable — explicitly listing the gap between the demo and a hardened production deployment (e.g. real OIDC auth, automated backups, multi-tenancy, alerting policies).</p>
+
+  <div class="files">docs/adr/0001-django-as-backend.md · 0002-celery-vs-rq.md · 0003-dagster-orchestration.md · 0004-medallion-architecture.md · 0005-postgres-partitioning.md · 0006-duckdb-analytical-layer.md · 0007-structured-logging.md</div>
+</div>
+
+<!-- ════════════════════ OPERATIONS ════════════════════ -->
+<h1 class="pb">8 · Operations manual</h1>
+<p class="lead">Everything you need to run, test and deploy the platform.</p>
+
+<h3>Run locally (one command)</h3>
+<pre>git clone https://github.com/henriquezbh5-cpu/marketintel.git
+cd marketintel
+cp .env.example .env
+docker compose up -d
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py apply_post_migrate
+docker compose exec web python manage.py loaddata seeds/sources.json seeds/instruments.json
+docker compose exec web python manage.py shell -c \
+  "from pipelines.tasks.yahoo import ingest_yahoo_spot_for_active; ingest_yahoo_spot_for_active.apply().get()"
+open http://localhost:8000/</pre>
+
+<p>The <code>scripts/bootstrap.sh</code> script wraps the above into a single invocation.</p>
+
+<h3>Run the test suite</h3>
+<pre># Full suite
+make test
+
+# Unit only (no DB / Redis required)
+make test-unit
+
+# Integration only (needs the running stack)
+make test-integration</pre>
+
+<p>27 tests, 1 skipped (the storage test that requires the optional <code>moto</code> dependency for S3 mocking).</p>
+
+<h3>Common operations</h3>
+<table>
+  <thead><tr><th>Need to do</th><th>How</th></tr></thead>
+  <tbody>
+    <tr><td>Issue an API key</td><td><code>python scripts/issue_api_key.py &lt;username&gt; --scope read</code></td></tr>
+    <tr><td>Inspect the dead-letter queue</td><td><code>python scripts/dlq_inspect.py list</code></td></tr>
+    <tr><td>Requeue a failed task</td><td><code>python scripts/dlq_inspect.py requeue &lt;task_id&gt;</code></td></tr>
+    <tr><td>Backfill a date range</td><td><code>./scripts/backfill.sh 2026-04-01 2026-04-15</code></td></tr>
+    <tr><td>Pull fresh quotes manually</td><td><code>make ingest</code></td></tr>
+    <tr><td>Take a Postgres backup</td><td><code>./scripts/backup.sh 30</code> (30-day retention)</td></tr>
+    <tr><td>Smoke-test a running deploy</td><td><code>./scripts/healthcheck.sh https://your-host</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Deploy to production</h3>
+<p>Three documented paths in <code>docs/DEPLOY.md</code>:</p>
+<ol>
+  <li><strong>Render</strong> (recommended for free permanent demo). Connect repo, click "Apply Blueprint" — the <code>render.yaml</code> provisions everything. Seed data via the Shell tab. Free tier sleeps after 15 min idle.</li>
+  <li><strong>Railway</strong> for a $5-credit, faster-build alternative. Pick repo, add Postgres + Redis plugins, add a worker service with the celery start command. <code>railway.toml</code> is committed.</li>
+  <li><strong>Kubernetes</strong> for production. <code>kubectl apply -k infra/k8s/overlays/production</code> applies Deployments + Services + HPA + PDB + NetworkPolicy + Ingress + migrations Job.</li>
+</ol>
+
+<h3>What to monitor in production</h3>
+<table>
+  <thead><tr><th>Metric</th><th>Threshold</th><th>Page</th></tr></thead>
+  <tbody>
+    <tr><td>API 5xx rate</td><td>&gt; 5% for 10 min</td><td><code>APIHighErrorRate</code></td></tr>
+    <tr><td>API p95 latency</td><td>&gt; 1s for 10 min</td><td><code>APILatencyP95High</code></td></tr>
+    <tr><td>Spot freshness</td><td>&gt; 5 min since last ingest</td><td><code>PipelineFreshnessStale</code></td></tr>
+    <tr><td>DLQ growth</td><td>&gt; 10 inserts in 15 min</td><td><code>DLQGrowing</code></td></tr>
+  </tbody>
+</table>
+
+<!-- ════════════════════ DEMO TOUR ════════════════════ -->
+<h1 class="pb">10 · Live demo · what each page shows</h1>
+
+<table>
+  <thead><tr><th>Path</th><th>What it shows</th><th>What to look for</th></tr></thead>
+  <tbody>
+    <tr><td><code>/</code></td><td>Overview</td><td>Featured chart updates every 5s. Top movers tabs work. Watchlist sparklines render after first data load. Status cards bottom-right reflect live freshness.</td></tr>
+    <tr><td><code>/markets/</code></td><td>All instruments</td><td>Search filters as-you-type. Sort buttons toggle direction on second click. Each row links to detail.</td></tr>
+    <tr><td><code>/markets/AAPL/</code></td><td>Symbol detail</td><td>Resolution selector (1m–1d) re-queries the partitioned fact. Window selector (6h–7d) adjusts the time range. Toggle between line and candlestick chart types.</td></tr>
+    <tr><td><code>/news/</code></td><td>News feed</td><td>Empty until <code>CRYPTOPANIC_API_KEY</code> is set — the page handles the empty state explicitly.</td></tr>
+    <tr><td><code>/system/</code></td><td>Pipeline status</td><td>Source connectivity badges (LIVE/STALE). DLQ counter. Partition table with row distribution. Architecture diagram (bronze/silver/gold).</td></tr>
+    <tr><td><code>/coverage/</code></td><td>Job-spec mapping</td><td>Bullet-by-bullet, what was delivered, where to see it, source files.</td></tr>
+    <tr><td><code>/api/docs/</code></td><td>Swagger UI</td><td>OpenAPI 3.1 schema, all endpoints, auth flow. Click <em>Authorize</em>, paste API key, try endpoints.</td></tr>
+    <tr><td><code>/health/ready/</code></td><td>Readiness probe</td><td>JSON with per-dependency status. 503 if degraded.</td></tr>
+  </tbody>
+</table>
+
+<!-- ════════════════════ FILE MAP ════════════════════ -->
+<h1 class="pb">11 · Source-code map</h1>
+
+<pre>marketintel/
+├── apps/
+│   ├── api/             REST API (DRF viewsets, serializers, throttling, auth)
+│   ├── core/            Shared models (DLQ), middleware, health probes, metrics
+│   ├── dashboard/       Server-rendered web UI (templates + JSON endpoints)
+│   ├── instruments/     Source + Instrument (SCD Type 2)
+│   ├── prices/          Partitioned candle fact + spot quote table
+│   └── news/            News articles with sentiment + full-text index
+├── pipelines/
+│   ├── connectors/      HTTP clients for third-party APIs
+│   │   ├── base.py            Token bucket + circuit breaker + retries + metrics
+│   │   ├── yahoo_finance.py   Active source · equities + indices + ETFs
+│   │   ├── binance.py         Alternate · crypto OHLCV
+│   │   ├── coingecko.py       Alternate · crypto spot
+│   │   └── cryptopanic.py     Alternate · news with sentiment
+│   ├── tasks/           Celery tasks (idempotent, retry-aware, DLQ-backed)
+│   │   ├── common.py          IdempotentTask base + on_failure hook
+│   │   ├── yahoo.py           Yahoo ingest tasks
+│   │   ├── ingest.py          Crypto ingest tasks
+│   │   ├── transform.py       Gold matview refresh
+│   │   └── maintenance.py     Future-partition creation
+│   └── orchestration/   Dagster assets, jobs, schedules, sensors
+├── warehouse/           DuckDB analytics layer + sample SQL queries
+├── config/              Django settings (base/dev/prod/test) + celery + observability
+├── infra/
+│   ├── postgres/        init SQL + post-migrate gold marts
+│   ├── k8s/             Kustomize base + staging/production overlays
+│   ├── grafana/         Pre-built dashboards + datasource provisioning
+│   └── prometheus/      Scrape config + alert rules
+├── docs/
+│   ├── adr/             7 Architecture Decision Records
+│   ├── data-model.md    Schema reference
+│   ├── pipelines.md     Cadence, idempotency contract, failure handling
+│   ├── DEPLOY.md        Tunnel · Render · Railway · K8s
+│   ├── RUNBOOK.md       On-call playbook
+│   ├── CONTRIBUTING.md  Setup + workflow
+│   └── MANUAL.html      This document
+├── tests/               27 tests · unit + integration + HTTP mocks
+├── scripts/             ops scripts (bootstrap, backfill, dlq, expose, etc.)
+├── seeds/               Initial Source + Instrument data
+├── examples/            Python client, cURL, Postman collection
+├── .github/             Workflows (CI, deploy, codeql) + templates
+├── .devcontainer/       VS Code devcontainer
+├── Dockerfile           Multi-stage (dev + prod targets)
+├── docker-compose.yml   Local 7-container stack
+├── render.yaml          Render deploy blueprint
+├── railway.toml         Railway deploy hint
+├── pyproject.toml       Python dependencies + tooling
+└── Makefile             Common dev tasks</pre>
+
+<h3>Closing note</h3>
+<p>Everything in this manual is verifiable in code, in the live demo at <code>github.com/henriquezbh5-cpu/marketintel</code>, or both. Where a requirement could not be fully demonstrated solo (collaboration, working with a real CTO), the document calls that out explicitly rather than overclaiming.</p>
+
+<p class="small" style="margin-top: 8mm; text-align: center;">— end of manual —</p>
+
+</body>
+</html>
